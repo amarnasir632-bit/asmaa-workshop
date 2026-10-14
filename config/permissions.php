@@ -1,0 +1,41 @@
+<?php
+
+return [
+    'labels' => [
+        'users.manage' => 'إدارة المستخدمين والصلاحيات',
+        'customers.view' => 'عرض أولياء الأمور والأطفال',
+        'customers.create' => 'إنشاء أولياء الأمور والأطفال',
+        'customers.update' => 'تعديل أولياء الأمور والأطفال',
+        'measurements.view' => 'عرض المقاسات',
+        'measurements.update' => 'تسجيل المقاسات',
+        'catalog.view' => 'عرض المدارس والأصناف',
+        'catalog.manage' => 'إدارة المدارس والأصناف',
+        'orders.view' => 'عرض الطلبات',
+        'orders.create' => 'إنشاء الطلبات',
+        'orders.update' => 'تعديل البيانات التشغيلية للطلبات',
+        'production.manage' => 'إدارة الإنتاج والترزي',
+        'deliveries.create' => 'تسجيل التسليم بعد تحقق الشروط',
+        'inventory.view' => 'عرض المخزون',
+        'inventory.sell' => 'بيع المخزون الجاهز',
+        'inventory.manage' => 'اعتماد الجرد وتصحيح المخزون',
+        'payments.record' => 'تسجيل الدفعات',
+        'payments.verify' => 'اعتماد التحويلات البنكية',
+        'finance.view' => 'عرض البيانات المالية',
+        'expenses.record' => 'تسجيل المصروفات',
+        'orders.cancel' => 'اعتماد إلغاء الطلب',
+        'refunds.approve' => 'اعتماد الاستردادات',
+        'audit.view' => 'عرض سجل التدقيق',
+        'history.correct' => 'تصحيح السجلات التاريخية الحساسة',
+        'history.manage' => 'إدارة سجل ترحيل البيانات التاريخية ومراجعته',
+        'reports.operational' => 'عرض التقارير التشغيلية',
+        'reports.financial' => 'عرض التقارير المالية',
+    ],
+
+    'employee' => [
+        'customers.view', 'customers.create', 'customers.update',
+        'measurements.view', 'measurements.update', 'catalog.view',
+        'orders.view', 'orders.create', 'orders.update',
+        'production.manage', 'deliveries.create', 'inventory.view', 'inventory.sell',
+        'payments.record', 'expenses.record', 'reports.operational',
+    ],
+];

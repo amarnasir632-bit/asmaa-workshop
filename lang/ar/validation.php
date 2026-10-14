@@ -1,0 +1,48 @@
+<?php
+
+return [
+    'accepted' => 'يجب الموافقة على :attribute.',
+    'active_url' => ':attribute ليس رابطاً صالحاً.',
+    'after' => 'يجب أن يكون :attribute تاريخاً بعد :date.',
+    'alpha' => 'يجب أن يحتوي :attribute على أحرف فقط.',
+    'array' => 'يجب أن يكون :attribute قائمة.',
+    'boolean' => 'يجب أن تكون قيمة :attribute صحيحة أو خاطئة.',
+    'date' => 'يجب أن يكون :attribute تاريخاً صالحاً.',
+    'email' => 'يجب أن يكون :attribute بريداً إلكترونياً صالحاً.',
+    'exists' => 'القيمة المختارة في :attribute غير صالحة.',
+    'file' => 'يجب أن يكون :attribute ملفاً.',
+    'image' => 'يجب أن يكون :attribute صورة.',
+    'integer' => 'يجب أن يكون :attribute عدداً صحيحاً.',
+    'max' => [
+        'array' => 'يجب ألا يحتوي :attribute على أكثر من :max عناصر.',
+        'file' => 'يجب ألا يتجاوز حجم :attribute :max كيلوبايت.',
+        'numeric' => 'يجب ألا تزيد قيمة :attribute على :max.',
+        'string' => 'يجب ألا يتجاوز :attribute :max أحرف.',
+    ],
+    'min' => [
+        'array' => 'يجب ألا يقل عدد عناصر :attribute عن :min.',
+        'file' => 'يجب ألا يقل حجم :attribute عن :min كيلوبايت.',
+        'numeric' => 'يجب ألا تقل قيمة :attribute عن :min.',
+        'string' => 'يجب ألا يقل :attribute عن :min أحرف.',
+    ],
+    'numeric' => 'يجب أن يكون :attribute رقماً.',
+    'required' => 'حقل :attribute مطلوب.',
+    'gt' => [
+        'numeric' => 'يجب أن تكون قيمة :attribute أكبر من :value.',
+    ],
+    'required_if' => 'حقل :attribute مطلوب عندما تكون :other هي :value.',
+    'same' => 'يجب أن يطابق :attribute الحقل :other.',
+    'string' => 'يجب أن يكون :attribute نصاً.',
+    'unique' => ':attribute مستخدم من قبل.',
+    'uploaded' => 'تعذر رفع :attribute.',
+    'url' => 'يجب أن يكون :attribute رابطاً صالحاً.',
+    'attributes' => [
+        'login' => 'اسم المستخدم أو البريد الإلكتروني',
+        'password' => 'كلمة المرور',
+        'name' => 'الاسم',
+        'phone' => 'رقم التواصل',
+        'amount' => 'المبلغ',
+        'quantity' => 'الكمية',
+        'due_on' => 'موعد الإنجاز',
+    ],
+];

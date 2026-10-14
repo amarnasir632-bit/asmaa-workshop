@@ -1,0 +1,92 @@
+@import 'tailwindcss';
+
+@font-face {
+    font-family: 'Tajawal Local';
+    src: url('../../font/Tajawal/Tajawal-Regular.ttf') format('truetype');
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Tajawal Local';
+    src: url('../../font/Tajawal/Tajawal-Bold.ttf') format('truetype');
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+}
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+@source '../js/**/*.js';
+
+:root {
+    color-scheme: light;
+    --brand-navy: #1f4e79;
+    --brand-gold: #b69e60;
+    --brand-black: #000000;
+    --brand-white: #ffffff;
+    --brand-ink: #24313d;
+    --brand-muted: #64748b;
+    --brand-border: #dbe2e8;
+    --brand-surface: #f7f8fa;
+}
+
+@theme {
+    --font-sans: 'Tajawal Local', 'Noto Sans Arabic', 'Segoe UI', sans-serif;
+}
+
+html {
+    direction: rtl;
+    background: var(--brand-surface);
+}
+
+body {
+    color: var(--brand-ink);
+    font-family: 'Tajawal Local', 'Noto Sans Arabic', 'Segoe UI', sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--brand-gold) 70%, white);
+    outline-offset: 2px;
+}
+
+@page {
+    size: A4 portrait;
+    margin: 12mm;
+}
+
+@media print {
+    html,
+    body {
+        background: #fff !important;
+        color: #000 !important;
+        print-color-adjust: exact;
+    }
+
+    aside,
+    button,
+    form,
+    a[href]:not(.print-link) {
+        display: none !important;
+    }
+
+    main {
+        padding: 0 !important;
+    }
+
+    section,
+    article,
+    table,
+    tr {
+        break-inside: avoid;
+    }
+}
