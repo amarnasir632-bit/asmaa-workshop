@@ -13,7 +13,8 @@
 /.vscode
 /.zed
 /auth.json
-/node_modules
+node_modules/
+.wrangler/
 /public/build
 /public/fonts-manifest.dev.json
 /public/hot
@@ -29,6 +30,7 @@ Thumbs.db
 # Environment files and local databases
 .env.*
 !.env.example
+.dev.vars
 /database/*.sqlite
 /database/*.sqlite3
 

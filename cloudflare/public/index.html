@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173c35">
+  <link rel="icon" href="/icon.png">
+  <title>مشغل أسماء</title>
+  <link rel="stylesheet" href="/app.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="brand">
+      <img src="/logo.png" alt="" width="56" height="56">
+      <div>
+        <p class="eyebrow">إدارة المشغل</p>
+        <h1>مشغل أسماء</h1>
+      </div>
+    </header>
+
+    <section id="login-panel" class="panel" aria-labelledby="login-title">
+      <h2 id="login-title">تسجيل الدخول</h2>
+      <p>سجّل الدخول بحساب موظف فعّال للوصول إلى النظام.</p>
+      <form id="login-form">
+        <label for="login">اسم المستخدم أو البريد الإلكتروني</label>
+        <input id="login" name="login" autocomplete="username" required maxlength="190">
+        <label for="password">كلمة المرور</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="200">
+        <button type="submit">دخول</button>
+      </form>
+    </section>
+
+    <section id="account-panel" class="panel" aria-live="polite" hidden>
+      <h2>مرحباً <span id="user-name"></span></h2>
+      <p id="account-message"></p>
+      <button id="logout-button" class="secondary" type="button">تسجيل الخروج</button>
+    </section>
+
+    <section id="work-panel" class="panel work-panel" hidden>
+      <div class="section-heading">
+        <div>
+          <h2>أولياء الأمور والأطفال</h2>
+          <p>إدارة بيانات التواصل وملفات الأطفال ومقاساتهم الحالية.</p>
+        </div>
+        <input id="guardian-search" type="search" placeholder="بحث بالاسم أو الهاتف أو الطفل" aria-label="بحث في الملفات">
+      </div>
+      <form id="guardian-form" class="inline-form">
+        <label for="guardian-name">اسم ولي الأمر</label>
+        <input id="guardian-name" name="name" required maxlength="160">
+        <label for="guardian-phone">رقم التواصل</label>
+        <input id="guardian-phone" name="phone" required maxlength="40" inputmode="tel">
+        <button type="submit">إضافة ملف</button>
+      </form>
+      <ul id="guardian-list" class="record-list"></ul>
+      <section id="guardian-detail" class="detail" hidden>
+        <div class="section-heading">
+          <h3 id="guardian-detail-title"></h3>
+          <button id="archive-guardian" class="secondary compact" type="button">أرشفة الملف</button>
+        </div>
+        <form id="child-form" class="inline-form">
+          <label for="child-name">اسم الطفل</label>
+          <input id="child-name" name="name" required maxlength="160">
+          <label for="child-notes">ملاحظات</label>
+          <input id="child-notes" name="notes" maxlength="2000">
+          <button type="submit">إضافة طفل</button>
+        </form>
+        <ul id="child-list" class="record-list"></ul>
+      </section>
+    </section>
+
+    <section id="staff-panel" class="panel work-panel" hidden>
+      <h2>حسابات الفريق</h2>
+      <p>حافظ على مدير نشط واحد على الأقل. أرسل بيانات الدخول عبر قناة آمنة خارج الموقع.</p>
+      <form id="staff-form" class="staff-form">
+        <label for="staff-name">الاسم</label>
+        <input id="staff-name" name="name" required maxlength="160">
+        <label for="staff-username">اسم المستخدم</label>
+        <input id="staff-username" name="username" required minlength="3" maxlength="80" pattern="[a-zA-Z0-9._-]+">
+        <label for="staff-email">البريد الإلكتروني (اختياري)</label>
+        <input id="staff-email" name="email" type="email" maxlength="190">
+        <label for="staff-role">الدور</label>
+        <select id="staff-role" name="role">
+          <option value="employee">موظف</option>
+          <option value="manager">مدير</option>
+        </select>
+        <label for="staff-password">كلمة مرور مؤقتة (12 حرفاً على الأقل)</label>
+        <input id="staff-password" name="password" type="password" required minlength="12" maxlength="200" autocomplete="new-password">
+        <label for="staff-password-confirmation">تأكيد كلمة المرور</label>
+        <input id="staff-password-confirmation" name="password_confirmation" type="password" required minlength="12" maxlength="200" autocomplete="new-password">
+        <button type="submit">إنشاء الحساب</button>
+      </form>
+      <ul id="staff-list" class="record-list"></ul>
+    </section>
+
+    <section id="catalog-panel" class="panel work-panel" hidden>
+      <h2>المدارس والأصناف</h2>
+      <div id="catalog-management" class="form-grid" hidden>
+        <form id="school-form" class="compact-form">
+          <h3>مدرسة</h3>
+          <label for="school-name">الاسم</label>
+          <input id="school-name" name="name" required maxlength="180">
+          <label for="school-phone">الهاتف (اختياري)</label>
+          <input id="school-phone" name="phone" maxlength="40">
+          <button type="submit">إضافة مدرسة</button>
+        </form>
+        <form id="grade-form" class="compact-form">
+          <h3>مرحلة دراسية</h3>
+          <label for="grade-school">المدرسة</label>
+          <select id="grade-school" name="school_id" required></select>
+          <label for="grade-name">اسم المرحلة</label>
+          <input id="grade-name" name="name" required maxlength="100">
+          <button type="submit">إضافة مرحلة</button>
+        </form>
+        <form id="garment-form" class="compact-form">
+          <h3>نوع ملابس</h3>
+          <label for="garment-name">الاسم</label>
+          <input id="garment-name" name="name" required maxlength="120">
+          <label><input name="requires_size" type="checkbox" checked> يتطلب مقاساً</label>
+          <label><input name="requires_color" type="checkbox"> يتطلب لوناً</label>
+          <button type="submit">إضافة نوع</button>
+        </form>
+        <form id="variant-form" class="compact-form">
+          <h3>تركيبة مخزون</h3>
+          <label for="variant-school">المدرسة (اختياري)</label>
+          <select id="variant-school" name="school_id"></select>
+          <label for="variant-grade">المرحلة (اختياري)</label>
+          <select id="variant-grade" name="grade_id"></select>
+          <label for="variant-garment">نوع الملابس</label>
+          <select id="variant-garment" name="garment_type_id" required></select>
+          <label for="variant-size">المقاس</label>
+          <input id="variant-size" name="size" maxlength="60">
+          <label for="variant-color">اللون</label>
+          <input id="variant-color" name="color" maxlength="80">
+          <label for="variant-sku">رمز الصنف (اختياري)</label>
+          <input id="variant-sku" name="sku" maxlength="80">
+          <button type="submit">إضافة تركيبة</button>
+        </form>
+      </div>
+      <ul id="catalog-list" class="record-list"></ul>
+    </section>
+
+    <section id="orders-panel" class="panel work-panel" hidden>
+      <h2>الطلبات</h2>
+      <form id="order-form" class="form-grid">
+        <label for="order-guardian">ولي الأمر</label>
+        <select id="order-guardian" name="guardian_id" required></select>
+        <label for="order-type">نوع الطلب</label>
+        <select id="order-type" name="type">
+          <option value="custom">تفصيل</option>
+          <option value="ready">ملابس جاهزة من المخزون</option>
+          <option value="alteration">تعديل</option>
+        </select>
+        <label for="order-description">وصف البند</label>
+        <input id="order-description" name="description" required maxlength="180">
+        <label for="order-child">الطفل (اختياري)</label>
+        <select id="order-child" name="child_id"></select>
+        <label for="order-garment">نوع الملابس (اختياري)</label>
+        <select id="order-garment" name="garment_type_id"></select>
+        <label for="order-variant">صنف مخزني (مطلوب للجاهز)</label>
+        <select id="order-variant" name="inventory_variant_id"></select>
+        <label for="order-quantity">الكمية</label>
+        <input id="order-quantity" name="quantity" type="number" min="1" max="500" value="1" required>
+        <label for="order-price">سعر الوحدة</label>
+        <input id="order-price" name="unit_price" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" required>
+        <label for="order-discount">خصم البند</label>
+        <input id="order-discount" name="discount" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" value="0">
+        <label for="order-due">تاريخ التسليم المتوقع (اختياري)</label>
+        <input id="order-due" name="due_on" type="date">
+        <button type="submit">إنشاء الطلب</button>
+      </form>
+      <ul id="orders-list" class="record-list"></ul>
+      <section id="order-detail" class="detail" hidden>
+        <h3 id="order-detail-title"></h3>
+        <p id="order-financial-summary"></p>
+        <ul id="order-items-list" class="record-list"></ul>
+        <div id="order-finance-actions" class="compact-actions"></div>
+        <form id="delivery-form" class="compact-form" hidden>
+          <h3>تسجيل التسليم</h3>
+          <label for="delivery-receiver">اسم المستلم</label>
+          <input id="delivery-receiver" name="received_by_name" required maxlength="160">
+          <label for="delivery-time">وقت التسليم</label>
+          <input id="delivery-time" name="delivered_at" type="datetime-local" required>
+          <div id="delivery-quantities"></div>
+          <button type="submit">حفظ التسليم</button>
+        </form>
+      </section>
+    </section>
+
+    <section id="payments-panel" class="panel work-panel" hidden>
+      <h2>الدفعات</h2>
+      <form id="payment-form" class="form-grid">
+        <label for="payment-order">الطلب</label>
+        <select id="payment-order" name="order_id" required></select>
+        <label for="payment-amount">المبلغ</label>
+        <input id="payment-amount" name="amount" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" required>
+        <label for="payment-method">الطريقة</label>
+        <select id="payment-method" name="method">
+          <option value="cash">نقداً</option>
+          <option value="bank_transfer">تحويل بنكي</option>
+        </select>
+        <label for="payment-time">تاريخ الدفع</label>
+        <input id="payment-time" name="paid_at" type="datetime-local" required>
+        <label for="payment-reference">رقم العملية (اختياري)</label>
+        <input id="payment-reference" name="transaction_reference" maxlength="120">
+        <button type="submit">تسجيل الدفعة</button>
+      </form>
+      <ul id="payments-list" class="record-list"></ul>
+    </section>
+
+    <section id="inventory-panel" class="panel work-panel" hidden>
+      <h2>المخزون والجرد</h2>
+      <form id="opening-form" class="compact-form" hidden>
+        <h3>رصيد افتتاحي جديد</h3>
+        <label for="opening-date">تاريخ الجرد</label>
+        <input id="opening-date" name="counted_on" type="date" required>
+        <label for="opening-variant">الصنف</label>
+        <select id="opening-variant" name="inventory_variant_id" required></select>
+        <label for="opening-quantity">الكمية المحصاة</label>
+        <input id="opening-quantity" name="quantity_counted" type="number" min="0" max="1000000" required>
+        <label for="opening-reason">ملاحظة (اختياري)</label>
+        <input id="opening-reason" name="difference_reason" maxlength="500">
+        <button type="submit">حفظ كمسودة</button>
+      </form>
+      <form id="adjustment-form" class="compact-form" hidden>
+        <h3>طلب تصحيح مخزون</h3>
+        <label for="adjustment-variant">الصنف</label>
+        <select id="adjustment-variant" name="inventory_variant_id" required></select>
+        <label for="adjustment-delta">التغيير (+/-)</label>
+        <input id="adjustment-delta" name="quantity_delta" type="number" min="-1000000" max="1000000" required>
+        <label for="adjustment-reason">السبب</label>
+        <input id="adjustment-reason" name="reason" required maxlength="1000">
+        <button type="submit">إرسال للاعتماد</button>
+      </form>
+      <h3>الأرصدة والحركات</h3>
+      <ul id="inventory-list" class="record-list"></ul>
+      <h3>دفعات الرصيد الافتتاحي</h3>
+      <ul id="opening-list" class="record-list"></ul>
+      <h3>طلبات التصحيح</h3>
+      <ul id="adjustment-list" class="record-list"></ul>
+    </section>
+
+    <section id="production-panel" class="panel work-panel" hidden>
+      <h2>الإنتاج والترزي</h2>
+      <form id="production-form" class="compact-form">
+        <h3>بدء سجل إنتاج</h3>
+        <label for="production-item">بند الطلب</label>
+        <select id="production-item" name="order_item_id" required></select>
+        <label for="production-quantity">الكمية</label>
+        <input id="production-quantity" name="quantity" type="number" min="1" max="500" required>
+        <label for="production-due">الموعد المتوقع (اختياري)</label>
+        <input id="production-due" name="expected_on" type="date">
+        <button type="submit">إنشاء سجل الإنتاج</button>
+      </form>
+      <ul id="production-list" class="record-list"></ul>
+    </section>
+
+    <section id="expenses-panel" class="panel work-panel" hidden>
+      <h2>المصروفات</h2>
+      <form id="expense-form" class="form-grid">
+        <label for="expense-category">الفئة</label>
+        <select id="expense-category" name="expense_category_id" required></select>
+        <label for="expense-amount">المبلغ</label>
+        <input id="expense-amount" name="amount" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" required>
+        <label for="expense-date">تاريخ الصرف</label>
+        <input id="expense-date" name="spent_on" type="date" required>
+        <label for="expense-description">الوصف</label>
+        <input id="expense-description" name="description" maxlength="180" required>
+        <button type="submit">تسجيل المصروف</button>
+      </form>
+      <ul id="expenses-list" class="record-list"></ul>
+    </section>
+
+    <section id="reports-panel" class="panel work-panel" hidden>
+      <h2>التقارير التشغيلية والمالية</h2>
+      <form id="report-form" class="form-grid">
+        <label for="report-from">من</label>
+        <input id="report-from" name="from" type="date" required>
+        <label for="report-to">إلى</label>
+        <input id="report-to" name="to" type="date" required>
+        <button type="submit">عرض التقرير</button>
+      </form>
+      <p id="report-summary"></p>
+      <ul id="report-orders" class="record-list"></ul>
+    </section>
+
+    <section id="audit-panel" class="panel work-panel" hidden>
+      <h2>سجل التدقيق</h2>
+      <ul id="audit-list" class="record-list"></ul>
+    </section>
+
+    <section id="history-panel" class="panel work-panel" hidden>
+      <h2>ترحيل السجلات التاريخية</h2>
+      <form id="history-batch-form" class="compact-form" hidden>
+        <label for="history-source">وصف المصدر</label>
+        <input id="history-source" name="source_description" required maxlength="180">
+        <label for="history-date">تاريخ الترحيل</label>
+        <input id="history-date" name="imported_on" type="date" required>
+        <button type="submit">إنشاء دفعة</button>
+      </form>
+      <ul id="history-batches" class="record-list"></ul>
+      <section id="history-detail" class="detail" hidden>
+        <h3 id="history-detail-title"></h3>
+        <form id="history-record-form" class="compact-form">
+          <label for="history-record-type">نوع السجل</label>
+          <select id="history-record-type" name="record_type" required>
+            <option value="customer">عميل / طفل</option>
+            <option value="child_measurements">مقاسات تاريخية</option>
+            <option value="order">طلب</option>
+            <option value="payment">دفعة</option>
+            <option value="refund">استرداد</option>
+            <option value="expense">مصروف</option>
+            <option value="inventory_observation">ملاحظة مخزون</option>
+            <option value="financial_balance">رصيد مالي</option>
+          </select>
+          <label for="history-record-text">النص المنقول</label>
+          <textarea id="history-record-text" name="transcription" required maxlength="50000"></textarea>
+          <label for="history-confidence">الثقة</label>
+          <select id="history-confidence" name="confidence">
+            <option value="confirmed">مؤكد</option>
+            <option value="incomplete">ناقص</option>
+            <option value="conflicting">متعارض</option>
+            <option value="unverified">غير متحقق</option>
+          </select>
+          <button type="submit">إضافة سجل للمراجعة</button>
+        </form>
+        <ul id="history-records" class="record-list"></ul>
+      </section>
+    </section>
+
+    <p id="notice" class="notice" role="status" aria-live="polite"></p>
+    <footer>تجهيز النسخة السحابية قيد التنفيذ. لا تستخدم هذه النسخة لإدخال بيانات حقيقية قبل اعتماد الجاهزية.</footer>
+  </main>
+</body>
+</html>
