@@ -154,14 +154,146 @@ async function listPayments(request, env, user, tools) {
         `SELECT payments.id, payments.order_id, orders.number AS order_number,
                 printf('%.2f', payments.amount) AS amount, payments.paid_at, payments.method,
                 payments.verification_status, payments.transaction_reference,
-                payments.recorded_by, users.name AS recorded_by_name
+                payments.recorded_by, users.name AS recorded_by_name,
+                payment_evidence.id AS evidence_id, payment_evidence.original_name AS evidence_name
          FROM payments
          JOIN orders ON orders.id = payments.order_id
          JOIN users ON users.id = payments.recorded_by
+         LEFT JOIN payment_evidence ON payment_evidence.payment_id = payments.id
          WHERE (? = 1 OR payments.recorded_by = ?)
          ORDER BY payments.paid_at DESC, payments.id DESC LIMIT 100`,
     ).bind(Number(user.permissions.includes("finance.view")), user.id).all();
     return tools.json({ data: result.results ?? [] });
+}
+
+const maximumEvidenceBytes = 5 * 1024 * 1024;
+
+function safeFilename(request) {
+    const supplied = request.headers.get("x-original-filename");
+    if (!supplied || supplied.length > 1024) return null;
+    let decoded;
+    try {
+        decoded = decodeURIComponent(supplied);
+    } catch {
+        return null;
+    }
+    const basename = decoded.split(/[\\/]/).at(-1)?.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+    return basename && basename.length <= 255 ? basename : null;
+}
+
+function evidenceType(bytes, declared) {
+    if (declared === "application/pdf"
+        && bytes.length >= 5
+        && String.fromCharCode(...bytes.subarray(0, 5)) === "%PDF-") return declared;
+    if (declared === "image/png"
+        && bytes.length >= 8
+        && bytes.subarray(0, 8).every((byte, index) => byte === [137, 80, 78, 71, 13, 10, 26, 10][index])) return declared;
+    if (declared === "image/jpeg"
+        && bytes.length >= 3
+        && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return declared;
+    return null;
+}
+
+async function uploadEvidence(request, paymentId, env, user, tools) {
+    if (!env.PAYMENT_EVIDENCE) return tools.json({ error: "evidence_storage_not_configured" }, 503);
+    const payment = await env.DB.prepare(
+        `SELECT payments.id, payments.order_id, payments.recorded_by, payments.method,
+                payments.verification_status
+         FROM payments WHERE payments.id = ?`,
+    ).bind(paymentId).first();
+    if (!payment) return tools.json({ error: "not_found" }, 404);
+    if (!user.permissions.includes("finance.view") && payment.recorded_by !== user.id) {
+        return tools.json({ error: "forbidden" }, 403);
+    }
+    if (payment.method !== "bank_transfer" || payment.verification_status !== "pending") {
+        return tools.json({ error: "evidence_upload_not_allowed" }, 409);
+    }
+    const filename = safeFilename(request);
+    const declaredType = request.headers.get("content-type") ?? "";
+    const contentLength = Number(request.headers.get("content-length") ?? 0);
+    if (!filename || !["application/pdf", "image/jpeg", "image/png"].includes(declaredType)
+        || contentLength > maximumEvidenceBytes) {
+        return tools.json({ error: "invalid_evidence_file" }, 422);
+    }
+
+    const reader = request.body?.getReader();
+    if (!reader) return tools.json({ error: "invalid_evidence_file" }, 422);
+    const chunks = [];
+    let length = 0;
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        length += value.length;
+        if (length > maximumEvidenceBytes) {
+            await reader.cancel();
+            return tools.json({ error: "invalid_evidence_file" }, 422);
+        }
+        chunks.push(value);
+    }
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.length;
+    }
+    const verifiedType = evidenceType(bytes, declaredType);
+    if (!verifiedType) return tools.json({ error: "invalid_evidence_file" }, 422);
+
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const duplicate = await env.DB.prepare(
+        `SELECT evidence.id FROM payment_evidence AS evidence
+         JOIN payments ON payments.id = evidence.payment_id
+         WHERE payments.order_id = ? AND evidence.sha256 = ?`,
+    ).bind(payment.order_id, sha256).first();
+    if (duplicate) return tools.json({ error: "duplicate_payment_evidence" }, 409);
+
+    const objectKey = `payment-evidence/${payment.order_id}/${tools.randomToken()}`;
+    const now = new Date().toISOString();
+    await env.PAYMENT_EVIDENCE.put(objectKey, bytes, {
+        httpMetadata: { contentType: verifiedType },
+        customMetadata: { sha256 },
+    });
+    try {
+        const results = await env.DB.batch([
+            env.DB.prepare(
+                `INSERT INTO payment_evidence
+                    (payment_id, private_path, original_name, mime_type, size_bytes, sha256, uploaded_by, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ).bind(paymentId, objectKey, filename, verifiedType, bytes.byteLength, sha256, user.id, now, now),
+            env.DB.prepare(
+                `INSERT INTO audit_logs
+                    (user_id, action, subject_type, subject_id, after_values, request_id, occurred_at)
+                 SELECT ?, 'payment_evidence_uploaded', 'App\\\\Models\\\\PaymentEvidence', id, ?, ?, ?
+                 FROM payment_evidence WHERE payment_id = ? AND sha256 = ?`,
+            ).bind(user.id, JSON.stringify({ payment_id: paymentId, mime_type: verifiedType, size_bytes: bytes.byteLength, sha256 }),
+                request.headers.get("cf-ray"), now, paymentId, sha256),
+        ]);
+        return tools.json({ id: results[0].meta.last_row_id, status: "stored" }, 201);
+    } catch (error) {
+        await env.PAYMENT_EVIDENCE.delete(objectKey);
+        console.error("D1 payment evidence metadata failed", error instanceof Error ? error.name : "unknown");
+        return tools.json({ error: "evidence_upload_failed" }, 409);
+    }
+}
+
+async function downloadEvidence(request, evidenceId, env, user, tools) {
+    if (!user.permissions.includes("finance.view")) return tools.json({ error: "forbidden" }, 403);
+    if (!env.PAYMENT_EVIDENCE) return tools.json({ error: "evidence_storage_not_configured" }, 503);
+    const evidence = await env.DB.prepare(
+        "SELECT id, private_path, original_name, mime_type FROM payment_evidence WHERE id = ?",
+    ).bind(evidenceId).first();
+    if (!evidence) return tools.json({ error: "not_found" }, 404);
+    const object = await env.PAYMENT_EVIDENCE.get(evidence.private_path);
+    if (!object) return tools.json({ error: "evidence_object_not_found" }, 404);
+    const headers = new Headers({
+        "content-type": evidence.mime_type,
+        "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(evidence.original_name)}`,
+        "cache-control": "private, no-store",
+        "x-content-type-options": "nosniff",
+        "content-security-policy": "default-src 'none'; sandbox",
+    });
+    return new Response(object.body, { headers });
 }
 
 async function verifyPayment(request, paymentId, env, user, tools) {
@@ -297,6 +429,22 @@ async function createDelivery(request, orderId, env, user, tools) {
 }
 
 export async function handleFinanceApi(request, env, url, tools) {
+    const evidenceUpload = url.pathname.match(/^\/api\/payments\/(\d+)\/evidence$/);
+    if (evidenceUpload) {
+        if (request.method !== "POST") return tools.json({ error: "method_not_allowed" }, 405);
+        const user = await tools.authenticatedUser(request, env);
+        if (!user) return tools.json({ error: "unauthenticated" }, 401);
+        if (!user.permissions.includes("payments.record")) return tools.json({ error: "forbidden" }, 403);
+        if (!tools.csrfValid(request, user)) return tools.json({ error: "csrf_failed" }, 419);
+        return uploadEvidence(request, Number(evidenceUpload[1]), env, user, tools);
+    }
+    const evidenceDownload = url.pathname.match(/^\/api\/payment-evidence\/(\d+)$/);
+    if (evidenceDownload) {
+        if (request.method !== "GET") return tools.json({ error: "method_not_allowed" }, 405);
+        const user = await tools.authenticatedUser(request, env);
+        if (!user) return tools.json({ error: "unauthenticated" }, 401);
+        return downloadEvidence(request, Number(evidenceDownload[1]), env, user, tools);
+    }
     if (url.pathname === "/api/payments") {
         const write = request.method !== "GET";
         const access = await authorize(request, env, "payments.record", tools, write);

@@ -2,6 +2,7 @@ const loginPanel = document.querySelector("#login-panel");
 const accountPanel = document.querySelector("#account-panel");
 const workPanel = document.querySelector("#work-panel");
 const staffPanel = document.querySelector("#staff-panel");
+const workspaceNav = document.querySelector("#workspace-nav");
 const notice = document.querySelector("#notice");
 let csrfToken = "";
 let selectedGuardianId = null;
@@ -36,6 +37,8 @@ const messages = {
     invalid_payment_data: "تحقق من بيانات الدفعة.",
     payment_exceeds_order_or_transaction_failed: "الدفعة تتجاوز المتبقي أو تعذر حفظها.",
     transaction_reference_in_use: "رقم العملية مسجل مسبقاً لهذا الطلب.",
+    evidence_upload_failed: "سُجلت الدفعة، لكن تعذر حفظ الإيصال. أعد المحاولة من سجل الدفعات.",
+    evidence_not_available: "مرفق الدفع غير متاح لهذا الحساب.",
     invalid_delivery_data: "تحقق من بيانات التسليم.",
     invalid_delivery_items: "تحقق من كميات بنود التسليم.",
     positive_delivery_quantity_required: "أدخل كمية موجبة لبند واحد على الأقل.",
@@ -86,6 +89,53 @@ const messages = {
     invalid_history_review: "أدخل نتيجة المراجعة وملاحظاتها.",
     invalid_history_correction: "تحقق من النص وسبب التصحيح.",
 };
+
+const workspaceSections = [
+    ["work-panel", "الأسر والأطفال"],
+    ["staff-panel", "الفريق"],
+    ["catalog-panel", "المدارس والأصناف"],
+    ["orders-panel", "الطلبات"],
+    ["payments-panel", "الدفعات"],
+    ["inventory-panel", "المخزون"],
+    ["production-panel", "الإنتاج"],
+    ["expenses-panel", "المصروفات"],
+    ["reports-panel", "التقارير"],
+    ["audit-panel", "التدقيق"],
+    ["history-panel", "السجلات التاريخية"],
+];
+
+function activateSection(panelId) {
+    const visibleIds = new Set(
+        [...workspaceNav.querySelectorAll("button[data-panel]")].map((button) => button.dataset.panel),
+    );
+    for (const [id] of workspaceSections) {
+        const panel = document.getElementById(id);
+        panel.hidden = !visibleIds.has(id) || id !== panelId;
+    }
+    for (const button of workspaceNav.querySelectorAll("button[data-panel]")) {
+        if (button.dataset.panel === panelId) button.setAttribute("aria-current", "page");
+        else button.removeAttribute("aria-current");
+    }
+}
+
+function configureWorkspaceNavigation() {
+    const visibleSections = workspaceSections.filter(([id]) => !document.getElementById(id).hidden);
+    workspaceNav.replaceChildren();
+    for (const [panelId, label] of visibleSections) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.dataset.panel = panelId;
+        workspaceNav.append(button);
+    }
+    workspaceNav.hidden = visibleSections.length < 2;
+    if (visibleSections.length > 0) activateSection(visibleSections[0][0]);
+}
+
+workspaceNav.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-panel]");
+    if (button) activateSection(button.dataset.panel);
+});
 
 function showNotice(message, isError = false) {
     notice.textContent = message;
@@ -253,7 +303,8 @@ async function loadOrders() {
     for (const order of orders) {
         const item = document.createElement("li");
         const text = document.createElement("span");
-        text.textContent = `${order.number} — ${order.customer_name_snapshot} — ${order.approved_total} ج.س — ${order.operational_status}`;
+        const total = currentPermissions.includes("finance.view") ? ` — ${order.approved_total} ج.س` : "";
+        text.textContent = `${order.number} — ${order.customer_name_snapshot}${total} — ${order.operational_status}`;
         item.append(text, createRecordButton("التفاصيل", order.id, "open-order"));
         list.append(item);
     }
@@ -269,8 +320,9 @@ async function loadOrder(id) {
     document.querySelector("#order-detail-title").textContent =
         `${order.number} — ${order.guardian_name ?? order.customer_name_snapshot}`;
     const summary = order.financial_summary;
-    document.querySelector("#order-financial-summary").textContent =
-        `الإجمالي ${order.approved_total} ج.س · المدفوع ${summary.net_paid} ج.س · المتبقي ${summary.due} ج.س`;
+    document.querySelector("#order-financial-summary").textContent = summary
+        ? `الإجمالي ${order.approved_total} ج.س · المدفوع ${summary.net_paid} ج.س · المتبقي ${summary.due} ج.س`
+        : "التفاصيل المالية غير متاحة لهذا الحساب.";
     const itemList = document.querySelector("#order-items-list");
     const quantityList = document.querySelector("#delivery-quantities");
     itemList.replaceChildren();
@@ -278,7 +330,8 @@ async function loadOrder(id) {
     for (const item of order.items) {
         const remaining = Number(item.quantity) - Number(item.delivered_quantity);
         const listItem = document.createElement("li");
-        listItem.textContent = `${item.description_snapshot} — ${item.quantity} × ${item.unit_price} ج.س — تم تسليم ${item.delivered_quantity} — متبقي ${remaining}`;
+        const unitPrice = currentPermissions.includes("finance.view") ? ` — ${item.unit_price} ج.س` : "";
+        listItem.textContent = `${item.description_snapshot} — ${item.quantity} قطعة${unitPrice} — تم تسليم ${item.delivered_quantity} — متبقي ${remaining}`;
         itemList.append(listItem);
 
         if (remaining > 0) {
@@ -297,7 +350,7 @@ async function loadOrder(id) {
     const deliveryForm = document.querySelector("#delivery-form");
     deliveryForm.dataset.orderId = order.id;
     deliveryForm.hidden = !currentPermissions.includes("deliveries.create")
-        || !summary.paid
+        || !order.delivery_eligible
         || order.operational_status === "cancelled"
         || quantityList.childElementCount === 0;
     if (!deliveryForm.hidden) {
@@ -320,6 +373,13 @@ async function loadPayments() {
         const text = document.createElement("span");
         text.textContent = `${payment.order_number} — ${payment.amount} ج.س — ${payment.method === "cash" ? "نقداً" : "تحويل بنكي"} — ${payment.verification_status}`;
         item.append(text);
+        if (payment.evidence_id) {
+            const link = document.createElement("a");
+            link.href = `/api/payment-evidence/${payment.evidence_id}`;
+            link.textContent = `إيصال: ${payment.evidence_name}`;
+            link.rel = "noreferrer";
+            item.append(link);
+        }
         if (payment.method === "bank_transfer" && payment.verification_status === "pending"
             && currentPermissions.includes("payments.verify")) {
             item.append(createRecordButton("اعتماد التحويل", payment.id, "verify-payment"));
@@ -556,6 +616,8 @@ async function loadAccount() {
         loginPanel.hidden = false;
         accountPanel.hidden = true;
         workPanel.hidden = true;
+        workspaceNav.hidden = true;
+        for (const [id] of workspaceSections) document.getElementById(id).hidden = true;
         if (error.message !== messages.unauthenticated) showNotice(error.message, true);
         return;
     }
@@ -574,6 +636,7 @@ async function loadAccount() {
         result.permissions.includes("orders.view") || result.permissions.includes("orders.create")
     );
     document.querySelector("#order-form").hidden = !result.permissions.includes("orders.create");
+    document.querySelector("#order-type option[value='ready']").disabled = !result.permissions.includes("inventory.sell");
     document.querySelector("#orders-list").hidden = !result.permissions.includes("orders.view");
     document.querySelector("#payments-panel").hidden = !result.permissions.includes("payments.record");
     document.querySelector("#payment-form").hidden = !result.permissions.includes("payments.record");
@@ -587,6 +650,7 @@ async function loadAccount() {
     document.querySelector("#audit-panel").hidden = !result.permissions.includes("audit.view");
     document.querySelector("#history-panel").hidden = !result.permissions.includes("history.manage");
     document.querySelector("#history-batch-form").hidden = !result.permissions.includes("history.manage");
+    configureWorkspaceNavigation();
     document.querySelector("#opening-date").value = currentLocalDate();
     document.querySelector("#expense-date").value = currentLocalDate();
     const firstOfMonth = `${currentLocalDate().slice(0, 7)}-01`;
@@ -982,9 +1046,14 @@ document.querySelector("#delivery-form").addEventListener("submit", async (event
 document.querySelector("#payment-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
+    const evidence = form.elements.evidence.files[0];
+    if (evidence && form.elements.method.value !== "bank_transfer") {
+        showNotice("أرفق الإيصال مع دفعة تحويل بنكي فقط.", true);
+        return;
+    }
     try {
         const data = Object.fromEntries(new FormData(form));
-        await api("/api/payments", {
+        const payment = await api("/api/payments", {
             method: "POST",
             body: JSON.stringify({
                 order_id: data.order_id,
@@ -994,6 +1063,26 @@ document.querySelector("#payment-form").addEventListener("submit", async (event)
                 transaction_reference: data.transaction_reference || null,
             }),
         });
+        if (evidence) {
+            try {
+                const response = await fetch(`/api/payments/${payment.id}/evidence`, {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "x-csrf-token": csrfToken,
+                        "x-original-filename": encodeURIComponent(evidence.name),
+                        "content-type": evidence.type,
+                    },
+                    body: evidence,
+                });
+                await readJson(response);
+            } catch (error) {
+                form.reset();
+                await Promise.all([loadPayments(), loadOrders()]);
+                showNotice("سُجلت الدفعة، لكن تعذر حفظ الإيصال. أعد المحاولة من سجل الدفعات.", true);
+                return;
+            }
+        }
         form.reset();
         await Promise.all([loadPayments(), loadOrders()]);
         showNotice("تم تسجيل الدفعة. التحويل البنكي يظل معلقاً حتى اعتماده.");

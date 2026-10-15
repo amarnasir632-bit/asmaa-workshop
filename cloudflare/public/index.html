@@ -37,6 +37,8 @@
       <button id="logout-button" class="secondary" type="button">تسجيل الخروج</button>
     </section>
 
+    <nav id="workspace-nav" class="workspace-nav" aria-label="أقسام النظام" hidden></nav>
+
     <section id="work-panel" class="panel work-panel" hidden>
       <div class="section-heading">
         <div>
@@ -203,6 +205,8 @@
         <input id="payment-time" name="paid_at" type="datetime-local" required>
         <label for="payment-reference">رقم العملية (اختياري)</label>
         <input id="payment-reference" name="transaction_reference" maxlength="120">
+        <label for="payment-evidence">إيصال التحويل (PDF/JPG/PNG، حتى 5MB)</label>
+        <input id="payment-evidence" name="evidence" type="file" accept="application/pdf,image/jpeg,image/png">
         <button type="submit">تسجيل الدفعة</button>
       </form>
       <ul id="payments-list" class="record-list"></ul>

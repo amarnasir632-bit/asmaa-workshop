@@ -137,6 +137,9 @@ async function createOrder(request, env, user, tools) {
     if (parsed.response) return parsed.response;
     const input = validOrderInput(parsed.data);
     if (!input) return tools.json({ error: "invalid_order_data" }, 422);
+    if (input.type === "ready" && !user.permissions.includes("inventory.sell")) {
+        return tools.json({ error: "forbidden" }, 403);
+    }
 
     const guardian = await env.DB.prepare(
         "SELECT id, name FROM guardians WHERE id = ? AND deleted_at IS NULL",
@@ -378,16 +381,28 @@ async function showOrder(id, env, user, tools) {
              WHERE deliveries.order_id = ? ORDER BY deliveries.id, delivery_items.id`,
         ).bind(id).all(),
     ]);
+    const canSeeFinance = user.permissions.includes("finance.view");
     const result = { ...order, items: items.results ?? [], deliveries: deliveries.results ?? [] };
-    result.financial_summary = await calculateFinancialSummary(order, env);
-    if (user.permissions.includes("finance.view")) {
+    if (canSeeFinance) {
+        result.financial_summary = await calculateFinancialSummary(order, env);
         const payments = await env.DB.prepare(
             `SELECT id, printf('%.2f', amount) AS amount, paid_at, method,
                     verification_status, transaction_reference, notes
              FROM payments WHERE order_id = ? ORDER BY paid_at, id`,
         ).bind(id).all();
         result.payments = payments.results ?? [];
+    } else {
+        delete result.items_total;
+        delete result.discount_total;
+        delete result.approved_total;
+        for (const item of result.items) {
+            delete item.unit_price;
+            delete item.discount_amount;
+            delete item.line_total;
+        }
     }
+    const financialSummary = await calculateFinancialSummary(order, env);
+    result.delivery_eligible = financialSummary.paid && order.operational_status !== "cancelled";
 
     return tools.json(result);
 }
@@ -397,7 +412,13 @@ export async function handleOrderApi(request, env, url, tools) {
         const write = request.method !== "GET";
         const access = await authorize(request, env, write ? "orders.create" : "orders.view", tools, write);
         if (access.response) return access.response;
-        if (request.method === "GET") return listOrders(url, env, tools);
+        if (request.method === "GET") {
+            const response = await listOrders(url, env, tools);
+            if (access.user.permissions.includes("finance.view")) return response;
+            const body = await response.json();
+            for (const order of body.data) delete order.approved_total;
+            return tools.json(body);
+        }
         if (request.method === "POST") return createOrder(request, env, access.user, tools);
         return tools.json({ error: "method_not_allowed" }, 405);
     }

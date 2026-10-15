@@ -15,5 +15,11 @@
       "database_name": "asmaa-workshop",
       "migrations_dir": "migrations"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PAYMENT_EVIDENCE",
+      "bucket_name": "asmaa-workshop-private"
+    }
   ]
 }

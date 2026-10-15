@@ -64,11 +64,14 @@ async function getReport(request, env, url, tools) {
     const where = whereOrders(filters);
     const currentWhere = whereOrders(filters, false);
     const params = [from, to, ...where.parameters];
+    const orderAmount = canSeeFinancial
+        ? "printf('%.2f', orders.approved_total) AS approved_total"
+        : "NULL AS approved_total";
     const [orders, states, jobs, inventory, movements] = await Promise.all([
         env.DB.prepare(
             `SELECT orders.id, orders.number, orders.type, orders.customer_name_snapshot,
                     orders.created_on, orders.due_on, orders.operational_status,
-                    printf('%.2f', orders.approved_total) AS approved_total
+                    ${orderAmount}
              FROM orders WHERE ${where.sql} ORDER BY orders.created_on DESC, orders.id DESC LIMIT 500`,
         ).bind(...params).all(),
         env.DB.prepare(

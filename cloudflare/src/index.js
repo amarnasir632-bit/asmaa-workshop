@@ -126,7 +126,7 @@ async function authenticatedUser(request, env) {
         return null;
     }
 
-    if (typeof sessionData.csrfToken !== "string") {
+    if (!sessionData || typeof sessionData !== "object" || typeof sessionData.csrfToken !== "string") {
         await env.DB.prepare("DELETE FROM sessions WHERE id = ?").bind(sessionId).run();
         return null;
     }

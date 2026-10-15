@@ -13,6 +13,8 @@ const protectedRoutes = [
     ["/api/expenses", "POST"],
     ["/api/orders/1/cancel", "POST"],
     ["/api/orders/1/refunds", "POST"],
+    ["/api/payments/1/evidence", "POST"],
+    ["/api/payment-evidence/1", "GET"],
     ["/api/reports", "GET"],
     ["/api/audit", "GET"],
     ["/api/history", "GET"],
