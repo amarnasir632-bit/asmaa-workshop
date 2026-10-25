@@ -18,25 +18,34 @@
 <body class="bg-slate-100 p-4 font-sans text-slate-800 antialiased sm:p-6 lg:p-8">
 
     <!-- شريط الأزرار العلوي (يختفي عند الطباعة) -->
-    <div class="no-print mx-auto mb-6 flex max-w-4xl flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <a href="{{ route('orders.show', $order) }}" class="inline-flex items-center text-sm font-semibold text-[var(--brand-navy)] hover:underline">
-            ← العودة لتفاصيل الطلب
-        </a>
-        <div class="flex flex-wrap items-center gap-2">
-            <button onclick="window.print()" class="inline-flex items-center gap-2 rounded-lg bg-[var(--brand-navy)] px-4 py-2 text-sm font-bold text-white shadow hover:opacity-90">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                طباعة / حفظ كـ PDF
-            </button>
-            <a href="{{ route('orders.statement.pdf', $order) }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-                تنزيل PDF مباشر
+    <div class="no-print mx-auto mb-6 flex max-w-4xl flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <a href="{{ route('orders.show', $order) }}" class="inline-flex items-center text-sm font-semibold text-[var(--brand-navy)] hover:underline">
+                ← العودة لتفاصيل الطلب
             </a>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="copyWhatsAppSummary()" id="copyBtn" class="inline-flex items-center gap-2 rounded-lg border border-emerald-500 bg-emerald-50 px-3.5 py-2 text-sm font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-100">
+                    <svg class="h-4 w-4 text-emerald-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.969.54 1.769.814 2.796.814 3.18 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.766-5.768-5.766zm0 10.378c-.894 0-1.636-.245-2.385-.688l-.17-.101-1.579.414.422-1.54-.112-.178c-.488-.778-.745-1.57-.745-2.519 0-2.538 2.066-4.604 4.569-4.604 2.502 0 4.568 2.066 4.568 4.604 0 2.539-2.066 4.604-4.568 4.604z"/></svg>
+                    <span>نسخ ملخص للواتساب</span>
+                </button>
+                <button onclick="window.print()" class="inline-flex items-center gap-2 rounded-lg bg-[var(--brand-navy)] px-4 py-2 text-sm font-bold text-white shadow hover:opacity-90">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    <span>طباعة / حفظ كـ PDF (جودة عالية)</span>
+                </button>
+                <a href="{{ route('orders.statement.pdf', $order) }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                    تنزيل PDF مباشر
+                </a>
+            </div>
+        </div>
+        <div class="rounded-lg bg-blue-50/80 px-3 py-2 text-xs text-blue-900 border border-blue-200">
+            💡 <b>نصيحة:</b> لإرسال المستند للمدرسة عبر الواتساب بأعلى دقة وتنسيق وهوية (خط تجوال والألوان والبطاقات)، اضغط زر <b>«طباعة / حفظ كـ PDF (جودة عالية)»</b> ثم اختر من خيارات الطابعة <b>«حفظ بتنسيق PDF»</b>.
         </div>
     </div>
 
     @php($totalOrdered = (int) $order->items->sum('quantity'))
     @php($totalDelivered = (int) $order->items->sum('delivered_quantity'))
     @php($totalRemaining = max(0, $totalOrdered - $totalDelivered))
-    @php($summary = $order->financial_summary)
+    @php($summary = $order->financial_summary ?? ['net_paid' => 0, 'due' => (int) round(((float) $order->approved_total) * 100)])
 
     <!-- ورقة المستند الرسمي (A4) -->
     <main class="print-shadow-none mx-auto max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-md sm:p-10 space-y-6">
@@ -289,5 +298,63 @@
 
     </main>
 
+    <script>
+        function copyWhatsAppSummary() {
+            const text = `*مشغل أسماء · كشف حساب وموقف توريد*\n` +
+                `🏫 المدرسة: {{ $order->customer_name_snapshot }}\n` +
+                `📄 رقم الطلب: #{{ $order->number }}\n` +
+                `📅 التاريخ: {{ $order->created_on->format('Y-m-d') }}\n` +
+                `------------------------\n` +
+                `👗 إجمالي اللبسات المطلوبة: {{ $totalOrdered }} لبسة\n` +
+                `🚚 استلموا كم (المسلّم): {{ $totalDelivered }} لبسة\n` +
+                `⏳ ما استلموا كم (المتبقي للتسليم): {{ $totalRemaining }} لبسة\n` +
+                `💰 قيمة العقد الإجمالية: {{ number_format((float)$order->approved_total, 2) }} ج.س\n` +
+                `✅ دفعوا كم (المسدد): {{ number_format($summary['net_paid'] / 100, 2) }} ج.س\n` +
+                `⚠️ باقي كم (مستحق السداد): {{ number_format($summary['due'] / 100, 2) }} ج.س\n` +
+                `------------------------\n` +
+                `مشغل أسماء لتفصيل وتوزيع الملابس المدرسية والزي الموحد`;
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    flashCopied();
+                }).catch(() => fallbackCopy(text));
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function flashCopied() {
+            const btn = document.getElementById('copyBtn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span>✓ تم نسخ ملخص الواتساب!</span>';
+            btn.classList.add('bg-emerald-600', 'text-white');
+            btn.classList.remove('bg-emerald-50', 'text-emerald-800');
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.classList.remove('bg-emerald-600', 'text-white');
+                btn.classList.add('bg-emerald-50', 'text-emerald-800');
+            }, 2500);
+        }
+
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                flashCopied();
+            } catch (e) {
+                alert('يرجى تحديد النص ونسخه يدوياً.');
+            }
+            document.body.removeChild(ta);
+        }
+
+        @if(request()->boolean('print'))
+            window.addEventListener('DOMContentLoaded', () => window.print());
+        @endif
+    </script>
 </body>
 </html>

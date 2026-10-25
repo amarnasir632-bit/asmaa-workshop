@@ -26,7 +26,7 @@
     @php($totalOrdered = (int) $order->items->sum('quantity'))
     @php($totalDelivered = (int) $order->items->sum('delivered_quantity'))
     @php($remainingDelivery = max(0, $totalOrdered - $totalDelivered))
-    @php($summary = $order->financial_summary)
+    @php($summary = $order->financial_summary ?? ['net_paid' => 0, 'due' => (int) round(((float) $order->approved_total) * 100)])
     <table class="summary">
         <tbody>
             <tr>

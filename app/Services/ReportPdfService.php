@@ -30,8 +30,50 @@ final class ReportPdfService
         $pdf->addPage(['orientation' => $orientation]);
         $pdf->page->addContent($font['out']);
         $pdf->setRTL(false);
+
+        $html = $this->reverseTableColumnsForRtl($html);
+
         $pdf->addHTMLCell($html, 12, 12, $orientation === 'L' ? 273 : 186);
 
         return $pdf->getOutPDFString();
+    }
+
+    /**
+     * tc-lib-pdf iterates HTML table cells strictly left-to-right regardless of dir="rtl".
+     * Inverting cell order per row ensures Arabic reading flow (right-to-left) matches column headers.
+     */
+    private function reverseTableColumnsForRtl(string $html): string
+    {
+        if (! str_contains($html, '<table') || ! str_contains($html, '<tr')) {
+            return $html;
+        }
+
+        try {
+            $dom = new \DOMDocument;
+            libxml_use_internal_errors(true);
+            $dom->loadHTML('<?xml encoding="utf-8" ?>'.$html);
+            libxml_clear_errors();
+
+            foreach ($dom->getElementsByTagName('tr') as $tr) {
+                $cells = [];
+                foreach ($tr->childNodes as $node) {
+                    if ($node->nodeType === XML_ELEMENT_NODE && in_array(strtolower($node->nodeName), ['th', 'td'], true)) {
+                        $cells[] = $node;
+                    }
+                }
+                if (count($cells) > 1) {
+                    for ($i = count($cells) - 1; $i >= 0; $i--) {
+                        $tr->appendChild($cells[$i]);
+                    }
+                }
+            }
+
+            $output = $dom->saveHTML();
+            $output = preg_replace('/<\?xml[^>]*\?>\s*/i', '', $output);
+
+            return html_entity_decode($output, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        } catch (\Throwable) {
+            return $html;
+        }
     }
 }
