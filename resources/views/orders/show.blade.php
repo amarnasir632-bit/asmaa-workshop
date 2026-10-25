@@ -2,9 +2,116 @@
 @section('title', 'تفاصيل الطلب')
 @section('content')
 <div class="mx-auto max-w-5xl space-y-5">
-    <header class="flex flex-wrap items-start justify-between gap-3"><div><a href="{{ route('orders.index') }}" class="text-sm font-semibold text-[var(--brand-navy)] underline">العودة للطلبات</a><h1 class="mt-2 text-2xl font-bold text-[var(--brand-navy)]">طلب {{ $order->number }}</h1><p class="mt-1 text-sm text-[var(--brand-muted)]">{{ $order->customer_name_snapshot }} · {{ ['custom'=>'تفصيل','ready'=>'ملابس جاهزة','alteration'=>'تعديل أو إصلاح'][$order->type] }} · {{ $order->created_on->format('Y-m-d') }}</p></div><div class="rounded-lg bg-slate-100 px-4 py-2 text-sm">{{ ['new'=>'جديد','in_progress'=>'قيد التنفيذ','partially_received'=>'استلام جزئي','fully_received'=>'مستلم بالكامل','ready'=>'جاهز','delivered'=>'مسلّم','cancelled'=>'ملغي'][$order->operational_status] }}</div></header>
+    <header class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <a href="{{ route('orders.index') }}" class="text-sm font-semibold text-[var(--brand-navy)] underline">العودة للطلبات</a>
+            <h1 class="mt-2 text-2xl font-bold text-[var(--brand-navy)]">
+                طلب {{ $order->number }}
+                @if($order->schoolContract)
+                    <span class="mr-2 inline-block rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-800">عقد مدرسة جماعي</span>
+                @endif
+            </h1>
+            <p class="mt-1 text-sm text-[var(--brand-muted)]">{{ $order->customer_name_snapshot }} · {{ ['custom'=>'تفصيل','ready'=>'ملابس جاهزة','alteration'=>'تعديل أو إصلاح'][$order->type] }} · {{ $order->created_on->format('Y-m-d') }}</p>
+        </div>
+        <div class="rounded-lg bg-slate-100 px-4 py-2 text-sm">{{ ['new'=>'جديد','in_progress'=>'قيد التنفيذ','partially_received'=>'استلام جزئي','fully_received'=>'مستلم بالكامل','ready'=>'جاهز','delivered'=>'مسلّم','cancelled'=>'ملغي'][$order->operational_status] }}</div>
+    </header>
     @if($order->notes)<section class="rounded-xl border border-[var(--brand-border)] bg-white p-4"><h2 class="font-semibold">ملاحظات</h2><p class="mt-2 whitespace-pre-line text-sm">{{ $order->notes }}</p></section>@endif
-    @if($order->schoolContract)<section class="rounded-xl border border-[var(--brand-border)] bg-white p-4"><h2 class="font-bold">عقد المدرسة · {{ $order->schoolContract->school->name }}</h2><p class="mt-1 text-sm text-[var(--brand-muted)]">{{ $order->schoolContract->contract_number ? 'رقم العقد: '.$order->schoolContract->contract_number.' · ' : '' }}{{ $order->schoolContract->contact_name ? 'جهة الاتصال: '.$order->schoolContract->contact_name : '' }}</p>@if($order->schoolContract->terms)<p class="mt-2 whitespace-pre-line text-sm">{{ $order->schoolContract->terms }}</p>@endif</section>@endif
+    @if($order->schoolContract)
+    <section class="space-y-4 rounded-xl border border-[var(--brand-border)] bg-white p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+            <div>
+                <h2 class="text-xl font-bold text-[var(--brand-navy)]">عقد مدرسة جماعي · {{ $order->schoolContract->school->name }}</h2>
+                <p class="mt-1 text-sm text-[var(--brand-muted)]">
+                    {{ $order->schoolContract->contract_number ? 'رقم العقد: '.$order->schoolContract->contract_number.' · ' : '' }}
+                    {{ $order->schoolContract->contact_name ? 'جهة الاتصال: '.$order->schoolContract->contact_name : '' }}
+                </p>
+            </div>
+            @can('payments.record')
+                @if($order->financial_summary['due'] > 0 && $order->operational_status !== 'cancelled')
+                    <a href="{{ route('payments.index', ['order_id' => $order->id]) }}" class="rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow hover:bg-emerald-800">
+                        + تسجيل دفعة للمدرسة
+                    </a>
+                @endif
+            @endcan
+        </div>
+
+        @if($order->schoolContract->terms)
+            <div class="rounded-lg bg-slate-50 p-3 text-sm">
+                <span class="font-semibold text-slate-700">الشروط والملاحظات:</span>
+                <p class="mt-1 whitespace-pre-line text-slate-600">{{ $order->schoolContract->terms }}</p>
+            </div>
+        @endif
+
+        <!-- إحصائيات عقد المدرسة: كم لبسة، كم مرحلة، دفعوا كم، متبقي كم -->
+        <div class="grid grid-cols-2 gap-3 text-center sm:grid-cols-5">
+            <div class="rounded-xl border border-amber-200 bg-amber-50/70 p-3">
+                <p class="text-xs font-medium text-amber-800">إجمالي اللبسات المطلوبة</p>
+                <p class="mt-1 text-2xl font-black text-amber-900">{{ $order->items->sum('quantity') }}</p>
+                <span class="text-[11px] text-amber-700">لبسة / قطعة</span>
+            </div>
+            <div class="rounded-xl border border-sky-200 bg-sky-50/70 p-3">
+                <p class="text-xs font-medium text-sky-800">المراحل المشمولة</p>
+                <p class="mt-1 text-2xl font-black text-sky-900">{{ $order->schoolContract->beneficiaries->pluck('grade_snapshot')->filter()->unique()->count() ?: 1 }}</p>
+                <span class="text-[11px] text-sky-700">مراحل دراسية</span>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p class="text-xs font-medium text-slate-700">قيمة العقد الإجمالية</p>
+                <p class="mt-1 text-2xl font-black text-slate-900">{{ number_format((float)$order->approved_total, 2) }}</p>
+                <span class="text-[11px] text-slate-500">ج.س</span>
+            </div>
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
+                <p class="text-xs font-medium text-emerald-800">المدفوع المؤكد (دفعوا)</p>
+                <p class="mt-1 text-2xl font-black text-emerald-900">{{ number_format($order->financial_summary['net_paid'] / 100, 2) }}</p>
+                <span class="text-[11px] text-emerald-700">ج.س</span>
+            </div>
+            <div class="rounded-xl border border-rose-200 bg-rose-50/70 p-3">
+                <p class="text-xs font-medium text-rose-800">المتبقي على المدرسة</p>
+                <p class="mt-1 text-2xl font-black text-rose-900">{{ number_format($order->financial_summary['due'] / 100, 2) }}</p>
+                <span class="text-[11px] text-rose-700">ج.س</span>
+            </div>
+        </div>
+
+        <!-- تفصيل اللبسات لكل مرحلة دراسية -->
+        <div>
+            <h3 class="mb-2 text-sm font-bold text-slate-800">تفصيل اللبسات والكميات لكل مرحلة دراسية:</h3>
+            <div class="overflow-x-auto rounded-lg border bg-white">
+                <table class="w-full text-right text-xs">
+                    <thead class="border-b bg-slate-50 font-bold text-slate-700">
+                        <tr>
+                            <th class="p-2.5">المرحلة الدراسية / الدفعة</th>
+                            <th class="p-2.5 text-center">كم لبسة (الكمية)</th>
+                            <th class="p-2.5">الأصناف واللبسات</th>
+                            <th class="p-2.5 text-left">إجمالي القيمة</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        @foreach($order->schoolContract->beneficiaries as $ben)
+                            @php($benQty = $ben->items->sum('quantity'))
+                            @php($benAmount = $ben->items->sum('line_total'))
+                            <tr class="hover:bg-slate-50/50">
+                                <td class="p-2.5 font-semibold text-[var(--brand-navy)]">
+                                    {{ $ben->grade_snapshot ?: 'عام' }}
+                                    @if($ben->name_snapshot && $ben->name_snapshot !== ('دفعة ' . $ben->grade_snapshot))
+                                        <br><span class="text-[11px] font-normal text-slate-500">{{ $ben->name_snapshot }}</span>
+                                    @endif
+                                </td>
+                                <td class="p-2.5 text-center font-bold text-amber-800">
+                                    {{ $benQty }} لبسة
+                                </td>
+                                <td class="p-2.5 text-slate-700">
+                                    {{ $ben->items->pluck('description_snapshot')->join('، ') }}
+                                </td>
+                                <td class="p-2.5 text-left font-bold text-slate-900">
+                                    {{ number_format((float)$benAmount, 2) }} ج.س
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    @endif
     <section class="overflow-hidden rounded-xl border border-[var(--brand-border)] bg-white"><h2 class="border-b p-4 font-bold">بنود الطلب</h2><div class="divide-y">@foreach($order->items as $item)<article class="p-4"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-semibold">{{ $item->description_snapshot }}</h3><p class="mt-1 text-sm text-[var(--brand-muted)]">{{ $item->beneficiary?->name_snapshot ? 'المستفيد: '.$item->beneficiary->name_snapshot.' · ' : '' }}{{ $item->child?->name ? 'الطفل: '.$item->child->name.' · ' : '' }}الكمية {{ $item->quantity }} · سعر الوحدة {{ number_format((float)$item->unit_price,2) }} ج.س @if($item->variant) · {{ $item->variant->garmentType->name }}{{ $item->variant->size ? ' · '.$item->variant->size : '' }}{{ $item->variant->color ? ' · '.$item->variant->color : '' }}@endif</p></div><div class="text-left"><p class="font-bold">{{ number_format((float)$item->line_total,2) }} ج.س</p>@if((float)$item->discount_amount>0)<p class="text-xs text-[var(--brand-muted)]">خصم: {{ number_format((float)$item->discount_amount,2) }}</p>@endif</div></div>
         @if($item->measurementSnapshot)<div class="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-5">@foreach(['shoulder_cm'=>'الكتف','chest_cm'=>'الصدر','sleeve_cm'=>'الكم','waist_circumference_cm'=>'محيط الخصر','length_cm'=>'الطول'] as $field=>$label)<div><span class="text-[var(--brand-muted)]">{{ $label }}</span><br><b>{{ $item->measurementSnapshot->{$field} ?? '—' }} سم</b></div>@endforeach</div>@endif
     </article>@endforeach</div><div class="space-y-2 border-t bg-slate-50 p-4 text-sm"><div class="flex justify-between"><span>مجموع البنود قبل الخصم</span><b>{{ number_format((float)$order->items_total,2) }} ج.س</b></div><div class="flex justify-between"><span>الخصومات المسجلة على البنود</span><b>{{ number_format((float)$order->discount_total,2) }} ج.س</b></div><div class="flex justify-between text-base"><span>القيمة المعتمدة للطلب</span><b>{{ number_format((float)$order->approved_total,2) }} ج.س</b></div></div></section>

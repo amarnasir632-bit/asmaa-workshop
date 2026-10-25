@@ -14,31 +14,50 @@ use App\Models\School;
 use App\Services\AuditLogger;
 use App\Services\OrderFinancialSummary;
 use App\Services\OrderNumberGenerator;
+use App\Support\LocalDateTime;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
 
 class OrderController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, OrderFinancialSummary $summary): View
     {
         Gate::authorize('orders.view');
         $search = trim((string) $request->query('q', ''));
-        $orders = Order::query()->with('guardian')->when($search !== '', function (Builder $query) use ($search): void {
-            $query->where(function (Builder $query) use ($search): void {
-                $query->where('number', 'like', '%'.$search.'%')
-                    ->orWhere('customer_name_snapshot', 'like', '%'.$search.'%')
-                    ->orWhereHas('guardian', fn (Builder $guardian) => $guardian->where('name', 'like', '%'.$search.'%'));
-            });
-        })->latest('id')->paginate(20)->withQueryString();
+        $filterType = (string) $request->query('type_filter', '');
 
-        return view('orders.index', compact('orders', 'search'));
+        $orders = Order::query()
+            ->with(['guardian', 'schoolContract.school', 'schoolContract.beneficiaries', 'items', 'payments'])
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->where(function (Builder $query) use ($search): void {
+                    $query->where('number', 'like', '%'.$search.'%')
+                        ->orWhere('customer_name_snapshot', 'like', '%'.$search.'%')
+                        ->orWhereHas('guardian', fn (Builder $guardian) => $guardian->where('name', 'like', '%'.$search.'%'))
+                        ->orWhereHas('schoolContract.school', fn (Builder $school) => $school->where('name', 'like', '%'.$search.'%'));
+                });
+            })
+            ->when($filterType === 'school_contract', function (Builder $query): void {
+                $query->has('schoolContract');
+            })
+            ->when($filterType === 'individual', function (Builder $query): void {
+                $query->doesntHave('schoolContract');
+            })
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        $orders->getCollection()->each(fn (Order $order) => $order->setAttribute('financial_summary', $summary->for($order)));
+
+        return view('orders.index', compact('orders', 'search', 'filterType'));
     }
 
     public function create(Request $request): View
@@ -72,7 +91,7 @@ class OrderController extends Controller
             'terms' => ['nullable', 'string', 'max:3000'],
             'due_on' => ['nullable', 'date', 'after_or_equal:today'],
             'beneficiaries' => ['required', 'array', 'min:1', 'max:100'],
-            'beneficiaries.*.name' => ['required', 'string', 'max:160'],
+            'beneficiaries.*.name' => ['nullable', 'string', 'max:160'],
             'beneficiaries.*.child_id' => ['nullable', 'integer', 'exists:children,id'],
             'beneficiaries.*.grade_id' => ['nullable', 'integer', 'exists:grades,id'],
             'beneficiaries.*.source_reference' => ['nullable', 'string', 'max:100'],
@@ -83,11 +102,21 @@ class OrderController extends Controller
             'beneficiaries.*.items.*.quantity' => ['required', 'integer', 'min:1', 'max:500'],
             'beneficiaries.*.items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:9999999999999.99', 'regex:/^\d{1,13}(?:\.\d{1,2})?$/'],
             'beneficiaries.*.items.*.discount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99', 'regex:/^\d{1,13}(?:\.\d{1,2})?$/'],
+            'initial_payment' => ['nullable', 'array'],
+            'initial_payment.amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99', 'regex:/^\d{1,13}(?:\.\d{1,2})?$/'],
+            'initial_payment.method' => ['nullable', 'required_with:initial_payment.amount', Rule::in(['cash', 'bank_transfer'])],
+            'initial_payment.transaction_reference' => ['nullable', 'string', 'max:120'],
+            'initial_payment.notes' => ['nullable', 'string', 'max:2000'],
+            'initial_payment.paid_at' => ['nullable', 'date', 'before_or_equal:now'],
+            'initial_payment_evidence' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ]);
         $school = School::query()->whereKey($data['school_id'])->where('is_active', true)->firstOrFail();
         $flatItems = [];
         $itemCount = 0;
         foreach ($data['beneficiaries'] as $beneficiaryIndex => $beneficiary) {
+            if (empty(trim($beneficiary['name'] ?? '')) && empty($beneficiary['grade_id'])) {
+                throw ValidationException::withMessages(["beneficiaries.$beneficiaryIndex.name" => 'يجب إدخال اسم المستفيد أو اختيار المرحلة الدراسية.']);
+            }
             if (! empty($beneficiary['grade_id']) && ! Grade::query()->whereKey($beneficiary['grade_id'])->where('school_id', $school->id)->exists()) {
                 throw ValidationException::withMessages(["beneficiaries.$beneficiaryIndex.grade_id" => 'المرحلة لا تتبع المدرسة المختارة.']);
             }
@@ -119,57 +148,122 @@ class OrderController extends Controller
 
         $grossTotal = array_sum(array_column($flatItems, 'gross'));
         $discountTotal = array_sum(array_column($flatItems, 'discount'));
+        $orderApprovedMinor = $grossTotal - $discountTotal;
+        $initialPaymentAmount = ! empty($data['initial_payment']['amount']) ? Money::toMinorUnits($data['initial_payment']['amount']) : 0;
+
+        if ($initialPaymentAmount > $orderApprovedMinor) {
+            throw ValidationException::withMessages([
+                'initial_payment.amount' => 'المبلغ المدفوع يتجاوز إجمالي قيمة العقد المعتمدة ('.number_format($orderApprovedMinor / 100, 2).' ج.س).',
+            ]);
+        }
+
         $number = $this->newOrderNumber();
-        $order = DB::transaction(function () use ($data, $flatItems, $school, $grossTotal, $discountTotal, $number, $request, $audit): Order {
-            $order = Order::query()->create([
-                'number' => $number, 'type' => 'custom', 'guardian_id' => null, 'customer_name_snapshot' => $school->name,
-                'created_by' => $request->user()->id, 'created_on' => now(config('app.display_timezone', 'Africa/Khartoum'))->toDateString(),
-                'due_on' => $data['due_on'] ?? null, 'operational_status' => 'new', 'items_total' => Money::fromMinorUnits($grossTotal),
-                'discount_total' => Money::fromMinorUnits($discountTotal), 'approved_total' => Money::fromMinorUnits($grossTotal - $discountTotal),
-            ]);
-            $contract = $order->schoolContract()->create([
-                'school_id' => $school->id, 'contract_number' => $data['contract_number'] ?? null,
-                'contact_name' => $data['contact_name'] ?? null, 'terms' => $data['terms'] ?? null,
-            ]);
-            $beneficiaries = [];
-            foreach ($data['beneficiaries'] as $index => $beneficiaryData) {
-                $grade = ! empty($beneficiaryData['grade_id']) ? Grade::query()->find($beneficiaryData['grade_id']) : null;
-                $beneficiaries[$index] = $contract->beneficiaries()->create([
-                    'child_id' => $beneficiaryData['child_id'] ?? null,
-                    'name_snapshot' => trim($beneficiaryData['name']),
-                    'grade_snapshot' => $grade?->name,
-                    'source_reference' => $beneficiaryData['source_reference'] ?? null,
+        $evidencePath = null;
+
+        try {
+            $order = DB::transaction(function () use ($data, $flatItems, $school, $grossTotal, $discountTotal, $orderApprovedMinor, $initialPaymentAmount, $number, $request, $audit, &$evidencePath): Order {
+                $order = Order::query()->create([
+                    'number' => $number, 'type' => 'custom', 'guardian_id' => null, 'customer_name_snapshot' => $school->name,
+                    'created_by' => $request->user()->id, 'created_on' => now(config('app.display_timezone', 'Africa/Khartoum'))->toDateString(),
+                    'due_on' => $data['due_on'] ?? null, 'operational_status' => 'new', 'items_total' => Money::fromMinorUnits($grossTotal),
+                    'discount_total' => Money::fromMinorUnits($discountTotal), 'approved_total' => Money::fromMinorUnits($orderApprovedMinor),
                 ]);
-            }
-            foreach ($flatItems as $flat) {
-                $beneficiary = $beneficiaries[$flat['beneficiary_index']];
-                $item = $flat['item'];
-                $orderItem = $beneficiary->items()->create([
-                    'order_id' => $order->id,
-                    'child_id' => $beneficiary->child_id,
-                    'inventory_variant_id' => $item['inventory_variant_id'] ?? null,
-                    'garment_type_id' => $item['garment_type_id'] ?? null,
-                    'description_snapshot' => trim($item['description']),
-                    'quantity' => $item['quantity'],
-                    'unit_price' => Money::fromMinorUnits(Money::toMinorUnits($item['unit_price'])),
-                    'discount_amount' => Money::fromMinorUnits($flat['discount']),
-                    'line_total' => Money::fromMinorUnits($flat['gross'] - $flat['discount']),
+                $contract = $order->schoolContract()->create([
+                    'school_id' => $school->id, 'contract_number' => $data['contract_number'] ?? null,
+                    'contact_name' => $data['contact_name'] ?? null, 'terms' => $data['terms'] ?? null,
                 ]);
-                if ($beneficiary->child_id) {
-                    $measurements = Child::query()->findOrFail($beneficiary->child_id)->currentMeasurements?->only([
-                        'shoulder_cm', 'chest_cm', 'sleeve_cm', 'waist_circumference_cm', 'length_cm',
-                    ]) ?? [];
-                    if (array_filter($measurements, fn ($value) => $value !== null && $value !== '') !== []) {
-                        $orderItem->measurementSnapshot()->create($measurements);
+                $beneficiaries = [];
+                foreach ($data['beneficiaries'] as $index => $beneficiaryData) {
+                    $grade = ! empty($beneficiaryData['grade_id']) ? Grade::query()->find($beneficiaryData['grade_id']) : null;
+                    $nameSnapshot = ! empty(trim($beneficiaryData['name'] ?? ''))
+                        ? trim($beneficiaryData['name'])
+                        : ($grade ? 'دفعة '.$grade->name : 'مستفيد مدرسة');
+
+                    $beneficiaries[$index] = $contract->beneficiaries()->create([
+                        'child_id' => $beneficiaryData['child_id'] ?? null,
+                        'name_snapshot' => $nameSnapshot,
+                        'grade_snapshot' => $grade?->name,
+                        'source_reference' => $beneficiaryData['source_reference'] ?? null,
+                    ]);
+                }
+                foreach ($flatItems as $flat) {
+                    $beneficiary = $beneficiaries[$flat['beneficiary_index']];
+                    $item = $flat['item'];
+                    $orderItem = $beneficiary->items()->create([
+                        'order_id' => $order->id,
+                        'child_id' => $beneficiary->child_id,
+                        'inventory_variant_id' => $item['inventory_variant_id'] ?? null,
+                        'garment_type_id' => $item['garment_type_id'] ?? null,
+                        'description_snapshot' => trim($item['description']),
+                        'quantity' => $item['quantity'],
+                        'unit_price' => Money::fromMinorUnits(Money::toMinorUnits($item['unit_price'])),
+                        'discount_amount' => Money::fromMinorUnits($flat['discount']),
+                        'line_total' => Money::fromMinorUnits($flat['gross'] - $flat['discount']),
+                    ]);
+                    if ($beneficiary->child_id) {
+                        $measurements = Child::query()->findOrFail($beneficiary->child_id)->currentMeasurements?->only([
+                            'shoulder_cm', 'chest_cm', 'sleeve_cm', 'waist_circumference_cm', 'length_cm',
+                        ]) ?? [];
+                        if (array_filter($measurements, fn ($value) => $value !== null && $value !== '') !== []) {
+                            $orderItem->measurementSnapshot()->create($measurements);
+                        }
                     }
                 }
+
+                $audit->record('school_contract_order_created', $order, $order->id, ['school_id', 'beneficiary_count', 'item_count', 'totals']);
+
+                if ($initialPaymentAmount > 0) {
+                    $method = $data['initial_payment']['method'] ?? 'cash';
+                    $ref = ! empty($data['initial_payment']['transaction_reference']) ? trim($data['initial_payment']['transaction_reference']) : null;
+                    $paidAt = ! empty($data['initial_payment']['paid_at'])
+                        ? LocalDateTime::toUtc($data['initial_payment']['paid_at'])
+                        : now();
+
+                    $payment = $order->payments()->create([
+                        'amount' => Money::fromMinorUnits($initialPaymentAmount),
+                        'paid_at' => $paidAt,
+                        'method' => $method,
+                        'verification_status' => $method === 'cash' ? 'not_required' : 'pending',
+                        'transaction_reference' => $ref,
+                        'recorded_by' => $request->user()->id,
+                        'notes' => $data['initial_payment']['notes'] ?? 'دفعة مقدمة عند إنشاء عقد المدرسة',
+                    ]);
+
+                    if ($file = $request->file('initial_payment_evidence')) {
+                        $sha = hash_file('sha256', $file->getRealPath());
+                        $evidencePath = $file->store('payment-evidence/'.$order->id, 'private');
+                        $payment->evidence()->create([
+                            'private_path' => $evidencePath,
+                            'original_name' => mb_substr($file->getClientOriginalName(), 0, 255),
+                            'mime_type' => $file->getMimeType(),
+                            'size_bytes' => $file->getSize(),
+                            'sha256' => $sha,
+                            'uploaded_by' => $request->user()->id,
+                        ]);
+                    }
+
+                    $audit->record('payment_recorded', $payment, $payment->id, ['order_id', 'amount', 'method', 'verification_status', 'transaction_reference']);
+                }
+
+                return $order;
+            });
+        } catch (Throwable $exception) {
+            if ($evidencePath) {
+                Storage::disk('private')->delete($evidencePath);
             }
-            $audit->record('school_contract_order_created', $order, $order->id, ['school_id', 'beneficiary_count', 'item_count', 'totals']);
+            throw $exception;
+        }
 
-            return $order;
-        });
+        $totalGarments = (int) array_sum(array_column(array_column($flatItems, 'item'), 'quantity'));
+        $gradeCount = count(array_unique(array_filter(array_column($data['beneficiaries'], 'grade_id'))));
+        $statusMsg = "تم إنشاء طلب المدرسة (#{$order->number}) بنجاح: تم طلب {$totalGarments} لبسة عبر {$gradeCount} مرحلة/دفعات بإجمالي ".number_format($orderApprovedMinor / 100, 2).' ج.س.';
 
-        return redirect()->route('orders.show', $order)->with('status', 'تم إنشاء طلب المدرسة وبنود المستفيدين وحفظ أسعار العقد.');
+        if ($initialPaymentAmount > 0) {
+            $remaining = max(0, $orderApprovedMinor - $initialPaymentAmount);
+            $statusMsg .= ' تم تسجيل دفعة بمبلغ '.number_format($initialPaymentAmount / 100, 2).' ج.س (المتبقي: '.number_format($remaining / 100, 2).' ج.س).';
+        }
+
+        return redirect()->route('orders.show', $order)->with('status', $statusMsg);
     }
 
     public function store(Request $request, AuditLogger $audit): RedirectResponse
