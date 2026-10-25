@@ -96,7 +96,7 @@ class AuthenticationAndAuthorizationTest extends TestCase
             ->expectsQuestion('الاسم الظاهر', 'مدير اختباري')
             ->expectsQuestion('اسم المستخدم (أحرف إنجليزية وأرقام ونقطة أو شرطة)', 'manager.first')
             ->expectsQuestion('البريد الإلكتروني (اختياري)', '')
-            ->expectsQuestion('كلمة مرور طويلة (12 حرفاً على الأقل)', 'Synthetic-Manager-Password-2026')
+            ->expectsQuestion('كلمة المرور (8 أحرف على الأقل، تشمل حرفاً كبيراً وصغيراً ورقماً ورمزاً)', 'Synthetic-Manager-Password-2026')
             ->expectsQuestion('أعد كتابة كلمة المرور', 'Synthetic-Manager-Password-2026')
             ->assertExitCode(0);
 

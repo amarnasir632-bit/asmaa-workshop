@@ -1,0 +1,36 @@
+-- ---------------------------------------------------------------------------
+-- قالب لإنشاء حساب المدير الأول (يُنفَّذ مرة واحدة فقط).
+-- هذا الملف قالب إرشادي: عدّله ثم نفّذه في phpMyAdmin بعد استيراد
+-- 01-schema.sql و 02-seed.sql. لا يمكن استخدامه كما هو لأن قيمة hash وهمية.
+--
+-- الأفضل: استخدم المولّد المحلي الذي يحسب التجزئة الصحيحة نيابة عنك:
+--   php docs/deployment/infinityfree/tools/generate-manager-sql.php \
+--       "اسم المدير" manager owner@example.com "كلمة-مرور-12-حرفاً-على-الأقل"
+-- ثم نفّذ الناتج في phpMyAdmin.
+--
+-- غيّر كلمة المرور فوراً بعد أول تسجيل دخول.
+-- ---------------------------------------------------------------------------
+SET NAMES utf8mb4;
+
+-- لا تُنشئ مديراً إن كان هناك مدير مرتبط بدور manager بالفعل (حماية من التكرار).
+INSERT INTO `users` (`name`, `username`, `email`, `password`, `is_active`, `created_at`, `updated_at`)
+SELECT 'اسم المدير', 'manager', 'owner@example.com', 'REPLACE_WITH_GENERATED_BCRYPT_HASH', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP()
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM `users` u
+    JOIN `user_roles` ur ON ur.`user_id` = u.`id`
+    JOIN `roles` r ON r.`id` = ur.`role_id`
+    WHERE r.`name` = 'manager'
+);
+
+SET @new_manager_id = LAST_INSERT_ID();
+
+INSERT INTO `user_roles` (`user_id`, `role_id`, `created_at`, `updated_at`)
+SELECT @new_manager_id, `id`, UTC_TIMESTAMP(), UTC_TIMESTAMP()
+FROM `roles` WHERE `name` = 'manager' AND @new_manager_id <> 0;
+
+INSERT INTO `audit_logs` (`user_id`, `action`, `subject_type`, `subject_id`, `before_values`, `after_values`, `reason`, `request_id`, `occurred_at`)
+SELECT NULL, 'bootstrap_manager_created', 'App\\\\Models\\\\User', @new_manager_id,
+       NULL, JSON_OBJECT('username', 'manager'),
+       'إنشاء حساب المدير الأول عبر SQL', NULL, UTC_TIMESTAMP()
+WHERE @new_manager_id <> 0;

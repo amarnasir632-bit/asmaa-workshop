@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Models\School;
 use App\Services\AuditLogger;
 use App\Services\OrderFinancialSummary;
+use App\Services\OrderNumberGenerator;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -315,10 +316,6 @@ class OrderController extends Controller
 
     private function newOrderNumber(): string
     {
-        do {
-            $number = 'ORD-'.now('Africa/Khartoum')->format('Ymd').'-'.strtoupper(bin2hex(random_bytes(3)));
-        } while (Order::query()->where('number', $number)->exists());
-
-        return $number;
+        return app(OrderNumberGenerator::class)->next();
     }
 }

@@ -28,7 +28,7 @@ return new class extends Migration
             $table->integer('previous_quantity')->nullable();
             $table->text('difference_reason')->nullable();
             $table->timestamps();
-            $table->unique(['opening_inventory_batch_id', 'inventory_variant_id']);
+            $table->unique(['opening_inventory_batch_id', 'inventory_variant_id'], 'oie_batch_variant_unique');
         });
 
         Schema::create('inventory_adjustments', function (Blueprint $table): void {

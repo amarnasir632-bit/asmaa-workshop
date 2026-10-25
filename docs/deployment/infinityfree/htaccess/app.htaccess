@@ -1,0 +1,12 @@
+# InfinityFree: deny ALL HTTP access to the private Laravel application tree.
+# This file is copied to htdocs/asmaa/.htaccess by tools/build-package.sh.
+# It is the primary secret-protection boundary because the free plan keeps the
+# web root fixed at htdocs and does not allow files outside it.
+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

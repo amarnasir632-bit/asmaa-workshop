@@ -45,11 +45,11 @@ class CreateManager extends Command
             return self::INVALID;
         }
 
-        $password = (string) $this->secret('كلمة مرور طويلة (12 حرفاً على الأقل)');
+        $password = (string) $this->secret('كلمة المرور (8 أحرف على الأقل، تشمل حرفاً كبيراً وصغيراً ورقماً ورمزاً)');
         $confirmation = (string) $this->secret('أعد كتابة كلمة المرور');
 
-        if (strlen($password) < 12 || ! hash_equals($password, $confirmation)) {
-            $this->components->error('كلمة المرور يجب أن تبلغ 12 حرفاً وأن تتطابق في الإدخالين.');
+        if (! self::isStrongPassword($password) || ! hash_equals($password, $confirmation)) {
+            $this->components->error('كلمة المرور يجب أن تبلغ 8 أحرف وتشمل حرفاً كبيراً وصغيراً ورقماً ورمزاً، وأن تتطابق في الإدخالين.');
 
             return self::INVALID;
         }
@@ -84,5 +84,14 @@ class CreateManager extends Command
         $this->components->warn('احتفظ ببيانات الدخول في مكان آمن. لا تسجل كلمة المرور في ملفات المشروع.');
 
         return self::SUCCESS;
+    }
+
+    private static function isStrongPassword(string $password): bool
+    {
+        return strlen($password) >= 8
+            && preg_match('/[A-Z]/', $password) === 1
+            && preg_match('/[a-z]/', $password) === 1
+            && preg_match('/[0-9]/', $password) === 1
+            && preg_match('/[^A-Za-z0-9]/', $password) === 1;
     }
 }

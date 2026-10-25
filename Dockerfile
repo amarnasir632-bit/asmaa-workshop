@@ -6,7 +6,7 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-FROM php:8.3-apache
+FROM php:8.4-apache
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
@@ -16,8 +16,9 @@ RUN apt-get update \
         libonig-dev \
         libpq-dev \
         libxml2-dev \
+        libzip-dev \
         unzip \
-    && docker-php-ext-install curl dom mbstring opcache pdo_pgsql xml \
+    && docker-php-ext-install curl dom mbstring opcache pdo_mysql pdo_pgsql xml zip \
     && sed -ri "s!/var/www/html!${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/*.conf /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
     && sed -i 's/Listen 80/Listen 10000/' /etc/apache2/ports.conf \
     && sed -i 's/<VirtualHost \*:80>/<VirtualHost *:10000>/' /etc/apache2/sites-available/000-default.conf \

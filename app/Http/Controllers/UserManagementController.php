@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -33,7 +34,7 @@ class UserManagementController extends Controller
             'username' => ['required', 'string', 'min:3', 'max:80', 'regex:/^[a-z0-9._-]+$/i', 'unique:users,username'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'role' => ['required', Rule::in(['manager', 'employee'])],
-            'password' => ['required', 'string', 'min:12', 'confirmed'],
+            'password' => ['required', 'string', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
         ]);
         $user = DB::transaction(function () use ($data, $audit): User {
             $user = User::query()->create([

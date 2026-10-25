@@ -18,6 +18,7 @@ use App\Http\Controllers\ProductionController;
 use App\Http\Controllers\PublicOrderLookupController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\TailorReportController;
 use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
@@ -37,6 +38,10 @@ Route::middleware(['auth', 'active.staff'])->group(function (): void {
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
     Route::get('/reports/pdf', [ReportsController::class, 'exportPdf'])->name('reports.pdf');
+    Route::get('/reports/tailor', [TailorReportController::class, 'index'])->name('reports.tailor');
+    Route::get('/reports/tailor/pdf', [TailorReportController::class, 'exportPdf'])->name('reports.tailor.pdf');
+    Route::get('/reports/tailor/form', [TailorReportController::class, 'form'])->name('reports.tailor.form');
+    Route::get('/reports/tailor/form/pdf', [TailorReportController::class, 'formPdf'])->name('reports.tailor.form.pdf');
 
     Route::get('/catalog', [CatalogController::class, 'index'])->name('catalog.index');
     Route::post('/catalog/schools', [CatalogController::class, 'storeSchool'])->name('catalog.schools.store');

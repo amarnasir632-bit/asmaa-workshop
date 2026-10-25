@@ -1,0 +1,93 @@
+-- Seed data: roles, permissions, role/permission mapping, garment types, expense categories.
+-- Contains NO user accounts and NO passwords.
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+INSERT INTO `roles` (`id`, `name`, `label`, `created_at`, `updated_at`) VALUES (1, 'manager', 'مدير', '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+INSERT INTO `roles` (`id`, `name`, `label`, `created_at`, `updated_at`) VALUES (2, 'employee', 'موظف', '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (1, 'users.manage', 'إدارة المستخدمين والصلاحيات');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (2, 'customers.view', 'عرض أولياء الأمور والأطفال');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (3, 'customers.create', 'إنشاء أولياء الأمور والأطفال');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (4, 'customers.update', 'تعديل أولياء الأمور والأطفال');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (5, 'measurements.view', 'عرض المقاسات');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (6, 'measurements.update', 'تسجيل المقاسات');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (7, 'catalog.view', 'عرض المدارس والأصناف');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (8, 'catalog.manage', 'إدارة المدارس والأصناف');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (9, 'orders.view', 'عرض الطلبات');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (10, 'orders.create', 'إنشاء الطلبات');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (11, 'orders.update', 'تعديل البيانات التشغيلية للطلبات');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (12, 'production.manage', 'إدارة الإنتاج والترزي');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (13, 'deliveries.create', 'تسجيل التسليم بعد تحقق الشروط');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (14, 'inventory.view', 'عرض المخزون');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (15, 'inventory.sell', 'بيع المخزون الجاهز');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (16, 'inventory.manage', 'اعتماد الجرد وتصحيح المخزون');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (17, 'payments.record', 'تسجيل الدفعات');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (18, 'payments.verify', 'اعتماد التحويلات البنكية');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (19, 'finance.view', 'عرض البيانات المالية');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (20, 'expenses.record', 'تسجيل المصروفات');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (21, 'orders.cancel', 'اعتماد إلغاء الطلب');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (22, 'refunds.approve', 'اعتماد الاستردادات');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (23, 'audit.view', 'عرض سجل التدقيق');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (24, 'history.correct', 'تصحيح السجلات التاريخية الحساسة');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (25, 'history.manage', 'إدارة سجل ترحيل البيانات التاريخية ومراجعته');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (26, 'reports.operational', 'عرض التقارير التشغيلية');
+INSERT INTO `permissions` (`id`, `name`, `label`) VALUES (27, 'reports.financial', 'عرض التقارير المالية');
+
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 1);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 2);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 3);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 4);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 5);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 6);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 7);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 8);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 9);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 10);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 11);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 12);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 13);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 14);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 15);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 16);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 17);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 18);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 19);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 20);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 21);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 22);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 23);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 24);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 25);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 26);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (1, 27);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 2);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 3);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 4);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 5);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 6);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 7);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 9);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 10);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 11);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 12);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 13);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 14);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 15);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 17);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 20);
+INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES (2, 26);
+
+INSERT INTO `garment_types` (`id`, `name`, `requires_size`, `requires_color`, `is_active`, `created_at`, `updated_at`) VALUES (1, 'قمصان', 1, 0, 1, '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+INSERT INTO `garment_types` (`id`, `name`, `requires_size`, `requires_color`, `is_active`, `created_at`, `updated_at`) VALUES (2, 'بناطيل', 1, 0, 1, '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+INSERT INTO `garment_types` (`id`, `name`, `requires_size`, `requires_color`, `is_active`, `created_at`, `updated_at`) VALUES (3, 'تنانير', 1, 0, 1, '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+INSERT INTO `garment_types` (`id`, `name`, `requires_size`, `requires_color`, `is_active`, `created_at`, `updated_at`) VALUES (4, 'زي كامل أو مريلة', 1, 0, 1, '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+INSERT INTO `garment_types` (`id`, `name`, `requires_size`, `requires_color`, `is_active`, `created_at`, `updated_at`) VALUES (5, 'أخرى', 1, 0, 1, '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+
+INSERT INTO `expense_categories` (`id`, `name`, `is_active`, `created_at`, `updated_at`) VALUES (1, 'أجور الترزي والخياطة', 1, '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+INSERT INTO `expense_categories` (`id`, `name`, `is_active`, `created_at`, `updated_at`) VALUES (2, 'النقل', 1, '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+INSERT INTO `expense_categories` (`id`, `name`, `is_active`, `created_at`, `updated_at`) VALUES (3, 'الخامات', 1, '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+INSERT INTO `expense_categories` (`id`, `name`, `is_active`, `created_at`, `updated_at`) VALUES (4, 'المصروفات التشغيلية', 1, '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+INSERT INTO `expense_categories` (`id`, `name`, `is_active`, `created_at`, `updated_at`) VALUES (5, 'أخرى', 1, '2026-10-17 17:33:44', '2026-10-17 17:33:44');
+
+SET FOREIGN_KEY_CHECKS = 1;

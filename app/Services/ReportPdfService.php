@@ -7,7 +7,7 @@ use Com\Tecnick\Pdf\Tcpdf;
 
 final class ReportPdfService
 {
-    public function render(string $html): string
+    public function render(string $html, string $orientation = 'P'): string
     {
         $fontDirectory = resource_path('pdf-fonts');
         if (! is_dir($fontDirectory.'/dejavu')) {
@@ -23,14 +23,14 @@ final class ReportPdfService
             isunicode: true,
             subsetfont: true,
             compress: true,
-            fileOptions: ['allowedPaths' => [$fontDirectory]],
+            fileOptions: ['allowedPaths' => [$fontDirectory, public_path()]],
         );
         $pdf->enableDefaultPageContent(false);
         $font = $pdf->font->insert($pdf->pon, 'dejavusans', '', 10);
-        $pdf->addPage();
+        $pdf->addPage(['orientation' => $orientation]);
         $pdf->page->addContent($font['out']);
         $pdf->setRTL(false);
-        $pdf->addHTMLCell($html, 12, 12, 186);
+        $pdf->addHTMLCell($html, 12, 12, $orientation === 'L' ? 273 : 186);
 
         return $pdf->getOutPDFString();
     }

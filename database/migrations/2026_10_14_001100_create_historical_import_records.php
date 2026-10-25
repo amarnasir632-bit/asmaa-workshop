@@ -23,13 +23,13 @@ return new class extends Migration
             $table->timestamp('reviewed_at')->nullable();
             $table->text('review_notes')->nullable();
             $table->timestamps();
-            $table->index(['historical_import_batch_id', 'record_type']);
+            $table->index(['historical_import_batch_id', 'record_type'], 'hir_batch_type_index');
             $table->index(['review_status', 'confidence']);
         });
 
         Schema::create('historical_record_revisions', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('historical_import_record_id')->constrained()->restrictOnDelete();
+            $table->foreignId('historical_import_record_id')->constrained('historical_import_records', 'id', 'hrr_historical_import_record_id_foreign')->restrictOnDelete();
             $table->longText('previous_transcription');
             $table->longText('corrected_transcription');
             $table->text('reason');

@@ -1,0 +1,55 @@
+# InfinityFree: front controller at the document root (htdocs) + hardening.
+# This file is copied to htdocs/.htaccess by tools/build-package.sh.
+
+<IfModule mod_negotiation.c>
+    Options -MultiViews
+</IfModule>
+
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Deny the private Laravel application directory entirely.
+    # PHP includes from index.php still work; only HTTP access is blocked.
+    RewriteRule ^asmaa(/|$) - [F,L]
+
+    # Defence in depth: never serve dotfiles or common project files.
+    # Keep /.well-known/ available for TLS/ACME validation.
+    RewriteCond %{REQUEST_URI} !^/\.well-known/
+    RewriteRule (^|/)\. - [F,L]
+    RewriteRule ^(composer\.(json|lock)|artisan|phpunit\.xml|package(-lock)?\.json|vite\.config\.js)$ - [F,L]
+
+    # Handle Authorization and XSRF headers.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+    RewriteCond %{HTTP:x-xsrf-token} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # Redirect trailing slashes when not a folder.
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Send requests to the front controller.
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "no-referrer"
+</IfModule>
+
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
