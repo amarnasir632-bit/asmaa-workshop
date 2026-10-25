@@ -14,11 +14,13 @@ use App\Models\School;
 use App\Services\AuditLogger;
 use App\Services\OrderFinancialSummary;
 use App\Services\OrderNumberGenerator;
+use App\Services\ReportPdfService;
 use App\Support\LocalDateTime;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -406,6 +408,44 @@ class OrderController extends Controller
         }
 
         return view('orders.show', compact('order'));
+    }
+
+    public function statement(Order $order, OrderFinancialSummary $financialSummary): View
+    {
+        Gate::authorize('orders.view');
+        $order->load([
+            'guardian', 'schoolContract.school', 'schoolContract.beneficiaries.items',
+            'items.beneficiary', 'items.child', 'items.variant.garmentType',
+            'creator', 'payments', 'deliveries.items.orderItem',
+        ]);
+        $order->setAttribute('financial_summary', $financialSummary->for($order));
+        foreach ($order->items as $item) {
+            $item->setAttribute('delivered_quantity', (int) $item->deliveryItems()->sum('quantity_delivered'));
+        }
+
+        return view('orders.statement', compact('order'));
+    }
+
+    public function statementPdf(Order $order, OrderFinancialSummary $financialSummary, ReportPdfService $pdf): Response
+    {
+        Gate::authorize('orders.view');
+        $order->load([
+            'guardian', 'schoolContract.school', 'schoolContract.beneficiaries.items',
+            'items.beneficiary', 'items.child', 'items.variant.garmentType',
+            'creator', 'payments', 'deliveries.items.orderItem',
+        ]);
+        $order->setAttribute('financial_summary', $financialSummary->for($order));
+        foreach ($order->items as $item) {
+            $item->setAttribute('delivered_quantity', (int) $item->deliveryItems()->sum('quantity_delivered'));
+        }
+
+        $html = view('orders.statement-pdf', compact('order'))->render();
+        $content = $pdf->render($html, 'P');
+
+        return response($content, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="statement-order-'.$order->number.'.pdf"',
+        ]);
     }
 
     private function newOrderNumber(): string

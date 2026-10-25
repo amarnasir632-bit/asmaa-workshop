@@ -13,7 +13,13 @@
             </h1>
             <p class="mt-1 text-sm text-[var(--brand-muted)]">{{ $order->customer_name_snapshot }} · {{ ['custom'=>'تفصيل','ready'=>'ملابس جاهزة','alteration'=>'تعديل أو إصلاح'][$order->type] }} · {{ $order->created_on->format('Y-m-d') }}</p>
         </div>
-        <div class="rounded-lg bg-slate-100 px-4 py-2 text-sm">{{ ['new'=>'جديد','in_progress'=>'قيد التنفيذ','partially_received'=>'استلام جزئي','fully_received'=>'مستلم بالكامل','ready'=>'جاهز','delivered'=>'مسلّم','cancelled'=>'ملغي'][$order->operational_status] }}</div>
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{{ route('orders.statement', $order) }}" class="inline-flex items-center gap-1.5 rounded-lg border-2 border-[var(--brand-navy)] bg-white px-3 py-1.5 text-xs font-bold text-[var(--brand-navy)] shadow-sm hover:bg-slate-50">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                كشف حساب وموقف الطلب (PDF وطباعة)
+            </a>
+            <div class="rounded-lg bg-slate-100 px-4 py-2 text-sm">{{ ['new'=>'جديد','in_progress'=>'قيد التنفيذ','partially_received'=>'استلام جزئي','fully_received'=>'مستلم بالكامل','ready'=>'جاهز','delivered'=>'مسلّم','cancelled'=>'ملغي'][$order->operational_status] }}</div>
+        </div>
     </header>
     @if($order->notes)<section class="rounded-xl border border-[var(--brand-border)] bg-white p-4"><h2 class="font-semibold">ملاحظات</h2><p class="mt-2 whitespace-pre-line text-sm">{{ $order->notes }}</p></section>@endif
     @if($order->schoolContract)
@@ -26,13 +32,18 @@
                     {{ $order->schoolContract->contact_name ? 'جهة الاتصال: '.$order->schoolContract->contact_name : '' }}
                 </p>
             </div>
-            @can('payments.record')
-                @if($order->financial_summary['due'] > 0 && $order->operational_status !== 'cancelled')
-                    <a href="{{ route('payments.index', ['order_id' => $order->id]) }}" class="rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow hover:bg-emerald-800">
-                        + تسجيل دفعة للمدرسة
-                    </a>
-                @endif
-            @endcan
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ route('orders.statement', $order) }}" class="rounded-lg bg-[var(--brand-navy)] px-3.5 py-2 text-xs font-bold text-white shadow hover:opacity-90">
+                    📄 كشف حساب التوريد والسداد للمدرسة
+                </a>
+                @can('payments.record')
+                    @if($order->financial_summary['due'] > 0 && $order->operational_status !== 'cancelled')
+                        <a href="{{ route('payments.index', ['order_id' => $order->id]) }}" class="rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow hover:bg-emerald-800">
+                            + تسجيل دفعة للمدرسة
+                        </a>
+                    @endif
+                @endcan
+            </div>
         </div>
 
         @if($order->schoolContract->terms)

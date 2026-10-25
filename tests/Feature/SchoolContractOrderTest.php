@@ -168,6 +168,46 @@ class SchoolContractOrderTest extends TestCase
         $this->assertDatabaseCount('orders', 0);
     }
 
+    public function test_order_statement_shows_ordered_delivered_remaining_paid_and_due(): void
+    {
+        $employee = $this->staff('contract.statement.employee');
+        $school = School::query()->create(['name' => 'مدرسة البيان الحديثة']);
+        $grade = $school->grades()->create(['name' => 'الصف الرابع']);
+
+        $payload = [
+            'school_id' => $school->id,
+            'contract_number' => 'STMT-001',
+            'beneficiaries' => [
+                [
+                    'name' => 'دفعة الصف الرابع',
+                    'grade_id' => $grade->id,
+                    'items' => [
+                        ['description' => 'زي كامل', 'quantity' => 40, 'unit_price' => '200.00', 'discount' => '0'], // 8000
+                    ],
+                ],
+            ],
+            'initial_payment' => [
+                'amount' => '3000.00',
+                'method' => 'cash',
+            ],
+        ];
+
+        $this->actingAs($employee)->post(route('school-contracts.store'), $payload);
+        $order = Order::query()->firstOrFail();
+
+        $response = $this->actingAs($employee)->get(route('orders.statement', $order));
+        $response->assertOk()
+            ->assertSee('كشف حساب وموقف توريد')
+            ->assertSee('مدرسة البيان الحديثة')
+            ->assertSee('40') // كم لبسة طُلبت
+            ->assertSee('3,000.00') // دفعوا كم
+            ->assertSee('5,000.00'); // متبقي كم
+
+        $pdfResponse = $this->actingAs($employee)->get(route('orders.statement.pdf', $order));
+        $pdfResponse->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+    }
+
     private function staff(string $username): User
     {
         $user = User::factory()->create(['username' => $username]);

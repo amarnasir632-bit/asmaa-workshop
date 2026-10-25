@@ -60,6 +60,8 @@ Route::middleware(['auth', 'active.staff'])->group(function (): void {
     Route::post('/school-contracts', [OrderController::class, 'storeSchoolContract'])->name('school-contracts.store');
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+    Route::get('/orders/{order}/statement', [OrderController::class, 'statement'])->name('orders.statement');
+    Route::get('/orders/{order}/statement/pdf', [OrderController::class, 'statementPdf'])->name('orders.statement.pdf');
     Route::post('/orders/{order}/deliveries', [DeliveryController::class, 'store'])->name('deliveries.store');
     Route::post('/orders/{order}/cancel', [CancellationController::class, 'store'])->name('orders.cancel');
     Route::patch('/orders/{order}/cancellation', [CancellationController::class, 'correct'])->name('orders.cancellation.correct');
