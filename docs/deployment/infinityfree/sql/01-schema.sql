@@ -228,5 +228,8 @@ create table `historical_record_revisions` (`id` bigint unsigned not null auto_i
 alter table `historical_record_revisions` add constraint `hrr_historical_import_record_id_foreign` foreign key (`historical_import_record_id`) references `historical_import_records` (`id`) on delete restrict;
 alter table `historical_record_revisions` add constraint `historical_record_revisions_corrected_by_foreign` foreign key (`corrected_by`) references `users` (`id`) on delete restrict;
 insert into `migrations` (`migration`, `batch`) values ('2026_10_14_001100_create_historical_import_records', 1);
+create table `sequences` (`name` varchar(50) not null primary key, `value` bigint unsigned not null default '0') default character set utf8mb4 collate 'utf8mb4_unicode_ci' engine = InnoDB row_format = dynamic;
+insert into `sequences` (`name`, `value`) values ('orders', (select count(*) from `orders`));
+insert into `migrations` (`migration`, `batch`) values ('2026_10_15_000000_create_sequences_and_sequential_order_numbers', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
