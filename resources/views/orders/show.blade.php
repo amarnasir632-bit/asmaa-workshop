@@ -145,9 +145,21 @@
     @if(auth()->user()->can('deliveries.create'))
         <section class="rounded-xl border border-[var(--brand-border)] bg-white p-4"><h2 class="font-bold">تسجيل تسليم</h2>
             @if($order->operational_status === 'cancelled')<p class="mt-2 text-sm text-red-800">الطلب ملغي ولا يمكن تسليمه.</p>
-            @elseif($order->financial_summary['due'] > 0)<p class="mt-2 text-sm text-amber-800">يمنع التسليم حتى سداد الرصيد بالكامل. الرصيد الحالي {{ number_format($order->financial_summary['due']/100,2) }} ج.س</p>
             @elseif($order->items->sum(fn($item) => $item->quantity - $item->delivered_quantity) > 0)
-            <form method="POST" action="{{ route('deliveries.store',$order) }}" class="mt-3 grid gap-3 sm:grid-cols-2">@csrf
+                @if($order->financial_summary['due'] > 0)
+                    <div class="mt-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950 shadow-sm">
+                        <div class="flex items-center gap-2 text-amber-900 font-bold">
+                            <span class="text-xl">⚠️</span>
+                            <span class="text-base">تنبيه مالي مهم: العميل لم يسدد كامل المبلغ!</span>
+                        </div>
+                        <p class="mt-1 text-sm text-slate-700">
+                            يوجد رصيد متبقٍ مستحق على هذا الطلب قدره:
+                            <strong class="text-base font-extrabold text-red-700">{{ number_format($order->financial_summary['due']/100,2) }} ج.س</strong>.
+                            يمكنك إتمام التسليم الجزئي أو الكلي، وستظل المديونية مسجلة في كشف حساب العميل والتقارير المالية.
+                        </p>
+                    </div>
+                @endif
+                <form method="POST" action="{{ route('deliveries.store',$order) }}" class="mt-3 grid gap-3 sm:grid-cols-2">@csrf
                 <label class="text-sm">اسم المستلم<input required name="received_by_name" class="mt-1 w-full rounded-lg border-slate-300"></label>
                 <label class="text-sm">التاريخ<input required type="datetime-local" name="delivered_at" value="{{ now()->format('Y-m-d\TH:i') }}" class="mt-1 w-full rounded-lg border-slate-300"></label>
                 <label class="text-sm">رقم الإيصال (اختياري)<input name="receipt_number" class="mt-1 w-full rounded-lg border-slate-300"></label>

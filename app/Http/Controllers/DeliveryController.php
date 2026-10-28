@@ -40,9 +40,6 @@ class DeliveryController extends Controller
                 throw ValidationException::withMessages(['order' => 'لا يمكن تسليم طلب ملغي.']);
             }
             $financial = $summary->for($lockedOrder);
-            if ($financial['due'] > 0) {
-                throw ValidationException::withMessages(['payment' => 'لا يمكن التسليم قبل سداد الرصيد المستحق.']);
-            }
             $items = $lockedOrder->items()->whereIn('id', collect($data['items'])->pluck('order_item_id'))->lockForUpdate()->get()->keyBy('id');
             if ($items->count() !== count($data['items'])) {
                 throw ValidationException::withMessages(['items' => 'توجد بنود لا تتبع هذا الطلب.']);
@@ -115,6 +112,11 @@ class DeliveryController extends Controller
             $audit->record('delivery_recorded', $delivery, $delivery->id, ['order_id', 'items', 'received_by_name', 'delivered_at']);
         });
 
-        return redirect()->route('orders.show', $order)->with('status', 'تم حفظ التسليم والكميات المرتبطة به.');
+        $financial = $summary->for($order);
+        $statusMessage = $financial['due'] > 0
+            ? 'تم حفظ التسليم بنجاح. تنبيه: ما زال هناك رصيد مستحق على الطلب قدره '.number_format($financial['due'] / 100, 2).' ج.س.'
+            : 'تم حفظ التسليم والكميات المرتبطة به.';
+
+        return redirect()->route('orders.show', $order)->with('status', $statusMessage);
     }
 }

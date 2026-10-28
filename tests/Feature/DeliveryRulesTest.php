@@ -24,15 +24,15 @@ class DeliveryRulesTest extends TestCase
         $this->withoutVite();
     }
 
-    public function test_unpaid_order_cannot_be_delivered_and_paid_order_supports_partial_quantities_without_overdelivery(): void
+    public function test_unpaid_order_can_be_delivered_with_warning_and_supports_partial_quantities(): void
     {
         $employee = $this->staff('delivery.employee');
         $order = $this->order($employee, 3);
         $payload = ['delivered_at' => now()->format('Y-m-d H:i:s'), 'received_by_name' => 'مستلم تجريبي', 'items' => [['order_item_id' => $order->items->first()->id, 'quantity_delivered' => 1]]];
 
-        $this->actingAs($employee)->post(route('deliveries.store', $order), $payload)->assertSessionHasErrors('payment');
-        $this->post(route('payments.store'), ['order_id' => $order->id, 'amount' => '30.00', 'method' => 'cash', 'paid_at' => now()->format('Y-m-d H:i:s')])->assertRedirect();
-        $this->post(route('deliveries.store', $order), $payload)->assertRedirect();
+        $this->actingAs($employee)->post(route('deliveries.store', $order), $payload)
+            ->assertRedirect()
+            ->assertSessionHas('status');
         $this->assertDatabaseHas('delivery_items', ['quantity_delivered' => 1]);
 
         $payload['items'][0]['quantity_delivered'] = 3;
@@ -59,7 +59,7 @@ class DeliveryRulesTest extends TestCase
         $this->assertSame(0, (int) $variant->balance()->value('quantity_available'));
     }
 
-    public function test_school_contract_cannot_be_partially_delivered_until_the_full_contract_is_paid(): void
+    public function test_school_contract_can_be_partially_delivered_before_full_payment(): void
     {
         $employee = $this->staff('delivery.school.employee');
         $school = School::query()->create(['name' => 'مدرسة عقد اختبار']);
@@ -67,9 +67,9 @@ class DeliveryRulesTest extends TestCase
         $order->schoolContract()->create(['school_id' => $school->id, 'contract_number' => 'CONTRACT-TEST']);
         $this->actingAs($employee)->post(route('payments.store'), ['order_id' => $order->id, 'amount' => '10.00', 'method' => 'cash', 'paid_at' => now()->format('Y-m-d H:i:s')])->assertRedirect();
         $payload = ['delivered_at' => now()->format('Y-m-d H:i:s'), 'received_by_name' => 'مستلم مدرسة', 'items' => [['order_item_id' => $order->items->first()->id, 'quantity_delivered' => 1]]];
-        $this->post(route('deliveries.store', $order), $payload)->assertSessionHasErrors('payment');
-        $this->post(route('payments.store'), ['order_id' => $order->id, 'amount' => '10.00', 'method' => 'cash', 'paid_at' => now()->format('Y-m-d H:i:s')])->assertRedirect();
-        $this->post(route('deliveries.store', $order), $payload)->assertRedirect();
+        $this->post(route('deliveries.store', $order), $payload)
+            ->assertRedirect()
+            ->assertSessionHas('status');
         $this->assertDatabaseCount('deliveries', 1);
     }
 
