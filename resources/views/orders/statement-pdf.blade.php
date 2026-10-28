@@ -2,16 +2,19 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="utf-8">
+    <title>كشف حساب طلب</title>
     <style>
-        body { font-family: dejavusans, sans-serif; direction: rtl; font-size: 8.5pt; color: #24313d; }
+        body { font-family: dejavusans, sans-serif; direction: rtl; font-size: 9.5pt; color: #1e293b; line-height: 1.4; }
         h1, h2, h3 { color: #1f4e79; }
-        h1 { font-size: 15pt; margin-bottom: 2px; }
-        h2 { margin-top: 10px; font-size: 11pt; }
+        h1 { font-size: 15pt; margin-bottom: 3px; font-weight: bold; }
+        h2 { margin-top: 12px; margin-bottom: 5px; font-size: 11pt; font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; }
         p { margin: 2px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-        th, td { border: 0.5px solid #cbd5e1; padding: 4px; text-align: right; font-size: 8pt; }
-        th { background-color: #eef2f6; color: #1f4e79; font-weight: bold; }
-        .summary { background-color: #f7f8fa; margin-bottom: 6px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; margin-bottom: 12px; }
+        th, td { border: 1px solid #cbd5e1; padding: 5px 7px; text-align: right; font-size: 9pt; }
+        th { background-color: #1f4e79; color: #ffffff; font-weight: bold; }
+        tr:nth-child(even) td { background-color: #f8fafc; }
+        .summary th { background-color: #f1f5f9; color: #1e293b; font-weight: bold; width: 25%; }
+        .summary td { width: 25%; }
         .text-center { text-align: center; }
         .text-left { text-align: left; }
     </style>
