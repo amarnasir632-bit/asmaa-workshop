@@ -20,6 +20,11 @@ class TailorDispatchItem extends Model
         return $this->belongsTo(TailorDispatch::class, 'tailor_dispatch_id');
     }
 
+    public function orderItem(): BelongsTo
+    {
+        return $this->belongsTo(OrderItem::class);
+    }
+
     public function receipts(): HasMany
     {
         return $this->hasMany(TailorReceiptItem::class);

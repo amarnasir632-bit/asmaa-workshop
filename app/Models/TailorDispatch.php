@@ -24,4 +24,9 @@ class TailorDispatch extends Model
     {
         return $this->hasMany(TailorDispatchItem::class);
     }
+
+    public function receipts(): HasMany
+    {
+        return $this->hasMany(TailorReceipt::class, 'tailor_dispatch_id');
+    }
 }

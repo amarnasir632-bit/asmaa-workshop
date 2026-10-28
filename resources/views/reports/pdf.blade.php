@@ -58,7 +58,7 @@
                 @foreach($dispatch->items as $item)
                     @php($hasTailorRows = true)
                     @php($received = $item->receipts->sum('quantity_received'))
-                    <tr><td>{{ $job->order->number }}</td><td>{{ $item->orderItem->description_snapshot }}</td><td>{{ $job->stage }}</td><td>{{ $item->quantity_sent }}</td><td>{{ $received }}</td><td>{{ max(0, $item->quantity_sent - $received) }}</td></tr>
+                    <tr><td>{{ $job->order?->number ?? '—' }}</td><td>{{ $item->orderItem?->description_snapshot ?? $job->orderItem?->description_snapshot ?? '—' }}</td><td>{{ $job->stage }}</td><td>{{ $item->quantity_sent }}</td><td>{{ $received }}</td><td>{{ max(0, $item->quantity_sent - $received) }}</td></tr>
                 @endforeach
             @endforeach
         @endforeach
@@ -68,14 +68,14 @@
     <h2>المخزون المتاح</h2>
     <table><thead><tr><th>المدرسة</th><th>الصنف</th><th>المرحلة</th><th>المقاس / اللون</th><th>المتاح</th></tr></thead><tbody>
         @forelse($inventory as $variant)
-            <tr><td>{{ $variant->school->name }}</td><td>{{ $variant->garmentType->name }}</td><td>{{ $variant->grade?->name ?? '—' }}</td><td>{{ $variant->size ?? '—' }} / {{ $variant->color ?? '—' }}</td><td>{{ $variant->balance?->quantity_available ?? 0 }}</td></tr>
+            <tr><td>{{ $variant->school?->name ?? 'عام / بلا مدرسة' }}</td><td>{{ $variant->garmentType?->name ?? '—' }}</td><td>{{ $variant->grade?->name ?? '—' }}</td><td>{{ $variant->size ?? '—' }} / {{ $variant->color ?? '—' }}</td><td>{{ $variant->balance?->quantity_available ?? 0 }}</td></tr>
         @empty<tr><td colspan="5">لا توجد أصناف مخزنية.</td></tr>@endforelse
     </tbody></table>
 
     <h2>حركات المخزون في الفترة</h2>
     <table><thead><tr><th>التاريخ</th><th>الصنف</th><th>الحركة</th><th>التغير</th><th>السبب</th></tr></thead><tbody>
         @forelse($movements as $movement)
-            <tr><td>{{ $movement->occurred_at->timezone(config('app.display_timezone'))->format('Y-m-d H:i') }}</td><td>{{ $movement->variant->school->name }} · {{ $movement->variant->garmentType->name }}</td><td>{{ $movement->movement_type }}</td><td>{{ $movement->quantity_change }}</td><td>{{ $movement->reason }}</td></tr>
+            <tr><td>{{ $movement->occurred_at?->timezone(config('app.display_timezone'))?->format('Y-m-d H:i') ?? '—' }}</td><td>{{ $movement->variant?->school?->name ?? 'عام / بلا مدرسة' }} · {{ $movement->variant?->garmentType?->name ?? '—' }}</td><td>{{ $movement->movement_type }}</td><td>{{ $movement->quantity_change }}</td><td>{{ $movement->reason }}</td></tr>
         @empty<tr><td colspan="5">لا توجد حركات مخزون.</td></tr>@endforelse
     </tbody></table>
     <p class="muted">أُنشئ هذا التقرير في {{ now(config('app.display_timezone'))->format('Y-m-d H:i') }} بتوقيت الخرطوم. النتائج التشغيلية محدودة بأول 500 طلب، وحركات المخزون بآخر 100 حركة في الفترة.</p>

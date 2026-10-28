@@ -10,15 +10,17 @@ final class OrderFinancialSummary
     /** @return array{recorded:int, confirmed:int, refunded:int, net_paid:int, due:int, paid:bool} */
     public function for(Order $order): array
     {
-        $payments = $order->payments()->get();
+        $payments = $order->relationLoaded('payments') ? $order->payments : $order->payments()->get();
         $recorded = $payments->sum(fn ($payment): int => Money::toMinorUnits((string) $payment->amount));
         $confirmed = $payments->filter(fn ($payment): bool => $payment->method === 'cash' || $payment->verification_status === 'verified')
             ->sum(fn ($payment): int => Money::toMinorUnits((string) $payment->amount));
-        $refunded = $order->refunds()->whereNotNull('refunded_at')
-            ->get()->sum(fn ($refund): int => Money::toMinorUnits((string) $refund->refunded_amount));
+        $refunds = $order->relationLoaded('refunds') ? $order->refunds : $order->refunds()->get();
+        $refunded = $refunds->filter(fn ($refund): bool => $refund->refunded_at !== null)
+            ->sum(fn ($refund): int => Money::toMinorUnits((string) $refund->refunded_amount));
         $hasPendingTransfer = $payments->contains(fn ($payment): bool => $payment->method === 'bank_transfer' && $payment->verification_status === 'pending');
         $net = max(0, $confirmed - $refunded);
-        $cancellationDiscount = Money::toMinorUnits((string) ($order->cancellations()->latest('id')->value('cancellation_discount') ?? '0.00'));
+        $cancellation = $order->relationLoaded('cancellations') ? $order->cancellations->sortByDesc('id')->first() : $order->cancellations()->latest('id')->first();
+        $cancellationDiscount = Money::toMinorUnits((string) ($cancellation?->cancellation_discount ?? '0.00'));
         $effectiveTotal = max(0, Money::toMinorUnits((string) $order->approved_total) - $cancellationDiscount);
         $due = $order->operational_status === 'cancelled' ? 0 : max(0, $effectiveTotal - $net);
 

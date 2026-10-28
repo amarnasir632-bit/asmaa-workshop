@@ -57,6 +57,73 @@ class FinancialReportsTest extends TestCase
         $this->get(route('reports.pdf'))->assertOk()->assertHeader('Content-Type', 'application/pdf');
     }
 
+    public function test_reports_handle_dispatches_and_variants_without_school_without_error(): void
+    {
+        $manager = $this->staff('reports.dispatch.manager', 'manager');
+        $guardian = Guardian::query()->create(['name' => 'عميل معمل', 'phone' => '000000099']);
+        $order = Order::query()->create([
+            'number' => 'REPORT-DISPATCH-1', 'type' => 'custom', 'guardian_id' => $guardian->id,
+            'customer_name_snapshot' => $guardian->name, 'created_by' => $manager->id,
+            'created_on' => now()->toDateString(), 'operational_status' => 'in_progress',
+            'items_total' => '200.00', 'discount_total' => '0.00', 'approved_total' => '200.00',
+        ]);
+        $orderItem = $order->items()->create([
+            'description_snapshot' => 'فستان مدرسي تجريبي',
+            'quantity' => 2, 'unit_price' => '100.00', 'line_total' => '200.00',
+        ]);
+        $job = \App\Models\ProductionJob::query()->create([
+            'order_id' => $order->id, 'order_item_id' => $orderItem->id, 'quantity' => 2, 'stage' => 'with_tailor',
+        ]);
+        $dispatch = $job->dispatches()->create([
+            'recipient_name' => 'الترزي السريع', 'sent_on' => now()->toDateString(), 'recorded_by' => $manager->id,
+        ]);
+        $dispatchItem = $dispatch->items()->create([
+            'order_item_id' => $orderItem->id, 'quantity_sent' => 2,
+        ]);
+        $receipt = $dispatch->receipts()->create([
+            'received_on' => now()->toDateString(), 'recorded_by' => $manager->id,
+        ]);
+        $receipt->items()->create([
+            'tailor_dispatch_item_id' => $dispatchItem->id, 'quantity_received' => 1,
+        ]);
+
+        $garmentType = \App\Models\GarmentType::query()->firstOrFail();
+        $variant = \App\Models\InventoryVariant::query()->create([
+            'school_id' => null,
+            'garment_type_id' => $garmentType->id,
+            'attributes_key' => 'general-test-var',
+            'size' => 'L',
+            'color' => 'أزرق',
+        ]);
+        \App\Models\InventoryMovement::query()->create([
+            'inventory_variant_id' => $variant->id,
+            'occurred_at' => now(),
+            'movement_type' => 'opening',
+            'quantity_change' => 10,
+            'recorded_by' => $manager->id,
+            'reason' => 'حركة بلا مدرسة',
+        ]);
+
+        $response = $this->actingAs($manager)->get(route('reports.index'))->assertOk();
+        $response->assertSee('REPORT-DISPATCH-1');
+        $response->assertSee('فستان مدرسي تجريبي');
+        $response->assertSee('عام / بلا مدرسة');
+
+        $pdf = $this->actingAs($manager)->get(route('reports.pdf'))->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF-', $pdf->getContent());
+    }
+
+    public function test_tailor_reports_render_successfully(): void
+    {
+        $manager = $this->staff('reports.tailor.manager', 'manager');
+        $this->actingAs($manager)->get(route('reports.tailor'))->assertOk()->assertSee('تقرير تفصيل الترزي');
+        $this->actingAs($manager)->get(route('reports.tailor.form'))->assertOk()->assertSee('نموذج تفصيل يدوي للترزي');
+        $pdf = $this->actingAs($manager)->get(route('reports.tailor.pdf'))->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF-', $pdf->getContent());
+        $formPdf = $this->actingAs($manager)->get(route('reports.tailor.form.pdf'))->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF-', $formPdf->getContent());
+    }
+
     private function staff(string $username, string $roleName): User
     {
         $user = User::factory()->create(['username' => $username]);

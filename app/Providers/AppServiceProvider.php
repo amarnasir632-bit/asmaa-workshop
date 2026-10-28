@@ -11,7 +11,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->alias(\App\Services\OrderFinancialSummary::class, 'App\Services\OrderFinancialSummaryService');
+        $this->app->alias(\App\Services\FinancialReportService::class, 'App\Services\FinancialSummaryService');
     }
 
     public function boot(): void

@@ -50,7 +50,10 @@ final class FinancialReportService
     {
         $summary = app(OrderFinancialSummary::class);
 
-        return $this->filteredOrders($filters)->where('operational_status', '!=', 'cancelled')->get()
+        return $this->filteredOrders($filters)
+            ->with(['payments', 'refunds', 'cancellations'])
+            ->where('operational_status', '!=', 'cancelled')
+            ->get()
             ->sum(fn (Order $order): int => $summary->for($order)['due']);
     }
 

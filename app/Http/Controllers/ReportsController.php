@@ -62,10 +62,10 @@ class ReportsController extends Controller
             ->when($filters['guardian_id'] ?? null, fn ($query, $guardianId) => $query->where('guardian_id', $guardianId))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('operational_status', $status));
         $ordersQuery->latest('created_on');
-        $orders = $forPdf ? $ordersQuery->limit(500)->get() : $ordersQuery->paginate(20)->withQueryString();
         $ordersForStates = (clone $ordersQuery)->reorder();
-        $orderStates = $ordersForStates->selectRaw('operational_status, COUNT(*) as total')->groupBy('operational_status')->pluck('total', 'operational_status');
-        $productionJobs = ProductionJob::query()->with(['order', 'orderItem', 'dispatches.items.receipts'])
+        $orderStates = $ordersForStates->toBase()->selectRaw('operational_status, COUNT(*) as total')->groupBy('operational_status')->pluck('total', 'operational_status');
+        $orders = $forPdf ? $ordersQuery->limit(500)->get() : $ordersQuery->paginate(20)->withQueryString();
+        $productionJobs = ProductionJob::query()->with(['order', 'orderItem', 'dispatches.items.receipts', 'dispatches.items.orderItem'])
             ->whereHas('order', fn ($query) => $query->whereDate('created_on', '>=', $from)->whereDate('created_on', '<=', $to)->when($filters['school_id'] ?? null, fn ($q, $schoolId) => $q->whereHas('schoolContract', fn ($contract) => $contract->where('school_id', $schoolId)))->when($filters['guardian_id'] ?? null, fn ($q, $guardianId) => $q->where('guardian_id', $guardianId))->when($filters['status'] ?? null, fn ($q, $status) => $q->where('operational_status', $status)))->get();
         $inventory = InventoryVariant::query()->with(['school', 'garmentType', 'grade', 'balance'])->when($filters['school_id'] ?? null, fn ($query, $schoolId) => $query->where('school_id', $schoolId))->orderBy('school_id')->orderBy('garment_type_id')->get();
         $movements = InventoryMovement::query()->with('variant.school', 'variant.garmentType')->whereHas('variant', fn ($query) => $query->when($filters['school_id'] ?? null, fn ($q, $schoolId) => $q->where('school_id', $schoolId)))->whereBetween('occurred_at', [LocalDateTime::toUtc($from.' 00:00:00'), LocalDateTime::toUtc($to.' 23:59:59')])->latest('occurred_at')->limit(100)->get();
