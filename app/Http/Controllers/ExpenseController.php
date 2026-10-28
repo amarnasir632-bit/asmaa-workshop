@@ -54,4 +54,29 @@ class ExpenseController extends Controller
 
         return redirect()->route('expenses.index')->with('status', 'تم تسجيل المصروف رقم '.$expense->id.'؛ لا يمكن تعديله أو حذفه دون سجل تصحيح معتمد.');
     }
+
+    public function reverse(Request $request, Expense $expense, AuditLogger $audit): RedirectResponse
+    {
+        Gate::authorize('expenses.record');
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        DB::transaction(function () use ($request, $expense, $data, $audit): void {
+            $lockedExpense = Expense::query()->whereKey($expense->id)->lockForUpdate()->firstOrFail();
+
+            Expense::query()->create([
+                'expense_category_id' => $lockedExpense->expense_category_id,
+                'amount' => Money::fromMinorUnits(-Money::toMinorUnits((string) $lockedExpense->amount)),
+                'spent_on' => now(config('app.display_timezone'))->toDateString(),
+                'description' => 'تسوية عكسية / إلغاء المصروف #' . $lockedExpense->id . ' (' . $lockedExpense->description . ')',
+                'notes' => 'سبب التصحيح: ' . trim($data['reason']),
+                'recorded_by' => $request->user()->id,
+            ]);
+
+            $audit->record('expense_reversed', $lockedExpense, $lockedExpense->id, ['amount'], trim($data['reason']));
+        });
+
+        return back()->with('status', 'تم إنشاء قيد التسوية العكسي بنجاح وتصحيح المصروف.');
+    }
 }

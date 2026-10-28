@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentEvidence;
+use App\Models\Refund;
+use App\Models\RefundTransaction;
 use App\Services\AuditLogger;
 use App\Services\OrderFinancialSummary;
 use App\Support\LocalDateTime;
@@ -107,6 +109,49 @@ class PaymentController extends Controller
         });
 
         return back()->with('status', 'تم اعتماد التحويل وإضافته إلى التحصيل المؤكد.');
+    }
+
+    public function reverse(Request $request, Payment $payment, AuditLogger $audit): RedirectResponse
+    {
+        Gate::authorize('payments.record');
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        DB::transaction(function () use ($request, $payment, $data, $audit): void {
+            $lockedPayment = Payment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            $order = Order::query()->whereKey($lockedPayment->order_id)->lockForUpdate()->firstOrFail();
+
+            if ($lockedPayment->method === 'bank_transfer' && $lockedPayment->verification_status === 'pending') {
+                $lockedPayment->delete();
+                $audit->record('payment_reversed', $lockedPayment, $lockedPayment->id, ['verification_status'], 'إلغاء إشعار تحويل بنكي معلق: ' . trim($data['reason']));
+            } else {
+                $refund = Refund::query()->create([
+                    'order_id' => $order->id,
+                    'original_payment_id' => $lockedPayment->id,
+                    'approved_amount' => $lockedPayment->amount,
+                    'refunded_amount' => $lockedPayment->amount,
+                    'method' => $lockedPayment->method,
+                    'refunded_at' => now(),
+                    'approved_by' => $request->user()->id,
+                    'approved_at' => now(),
+                    'reason' => 'قيد تسوية عكسي لإلغاء الدفعة رقم ' . $lockedPayment->id . ': ' . trim($data['reason']),
+                ]);
+
+                RefundTransaction::query()->create([
+                    'refund_id' => $refund->id,
+                    'amount' => $lockedPayment->amount,
+                    'method' => $lockedPayment->method,
+                    'refunded_at' => now(),
+                    'recorded_by' => $request->user()->id,
+                ]);
+
+                $audit->record('payment_reversed', $lockedPayment, $lockedPayment->id, ['amount'], trim($data['reason']));
+            }
+            $order->touch();
+        });
+
+        return back()->with('status', 'تم إنشاء قيد التسوية العكسي بنجاح وتصحيح الحساب دون حذف السجل.');
     }
 
     public function evidence(Request $request, PaymentEvidence $evidence)

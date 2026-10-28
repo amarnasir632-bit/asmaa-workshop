@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CurrentMeasurement;
 use App\Models\Guardian;
 use App\Models\School;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
@@ -35,8 +37,9 @@ class GuardianController extends Controller
     public function create(): View
     {
         Gate::authorize('customers.create');
+        $schools = School::query()->where('is_active', true)->with('grades')->orderBy('name')->get();
 
-        return view('guardians.create');
+        return view('guardians.create', compact('schools'));
     }
 
     public function store(Request $request, AuditLogger $audit): RedirectResponse
@@ -47,12 +50,64 @@ class GuardianController extends Controller
             'phone' => ['required', 'string', 'max:40'],
             'alternate_phone' => ['nullable', 'string', 'max:40'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'children' => ['nullable', 'array'],
+            'children.*.name' => ['nullable', 'string', 'max:160'],
+            'children.*.school_id' => ['nullable', 'integer', 'exists:schools,id'],
+            'children.*.grade_id' => ['nullable', 'integer', 'exists:grades,id'],
+            'children.*.notes' => ['nullable', 'string', 'max:2000'],
+            'children.*.shoulder_cm' => ['nullable', 'numeric', 'gt:0', 'max:500'],
+            'children.*.chest_cm' => ['nullable', 'numeric', 'gt:0', 'max:500'],
+            'children.*.sleeve_cm' => ['nullable', 'numeric', 'gt:0', 'max:500'],
+            'children.*.waist_circumference_cm' => ['nullable', 'numeric', 'gt:0', 'max:500'],
+            'children.*.length_cm' => ['nullable', 'numeric', 'gt:0', 'max:500'],
         ]);
 
-        $guardian = Guardian::query()->create($data);
-        $audit->record('guardian_created', $guardian, $guardian->id, array_keys($data));
+        $guardian = DB::transaction(function () use ($data, $audit, $request) {
+            $guardianData = [
+                'name' => $data['name'],
+                'phone' => $data['phone'],
+                'alternate_phone' => $data['alternate_phone'] ?? null,
+                'notes' => $data['notes'] ?? null,
+            ];
+            $guardian = Guardian::query()->create($guardianData);
+            $audit->record('guardian_created', $guardian, $guardian->id, array_keys($guardianData));
 
-        return redirect()->route('guardians.show', $guardian)->with('status', 'تم حفظ ملف ولي الأمر.');
+            if (! empty($data['children']) && is_array($data['children'])) {
+                foreach ($data['children'] as $childData) {
+                    $childName = trim((string) ($childData['name'] ?? ''));
+                    if ($childName === '') {
+                        continue;
+                    }
+
+                    $child = $guardian->children()->create([
+                        'name' => $childName,
+                        'school_id' => ! empty($childData['school_id']) ? (int) $childData['school_id'] : null,
+                        'grade_id' => ! empty($childData['grade_id']) ? (int) $childData['grade_id'] : null,
+                        'notes' => $childData['notes'] ?? null,
+                    ]);
+                    $audit->record('child_created', $child, $child->id, ['name', 'school_id', 'grade_id', 'notes']);
+
+                    $measurementFields = ['shoulder_cm', 'chest_cm', 'sleeve_cm', 'waist_circumference_cm', 'length_cm'];
+                    $measurements = [];
+                    foreach ($measurementFields as $field) {
+                        if (isset($childData[$field]) && $childData[$field] !== '') {
+                            $measurements[$field] = $childData[$field];
+                        }
+                    }
+
+                    if ($measurements !== []) {
+                        $measurements['child_id'] = $child->id;
+                        $measurements['updated_by'] = $request->user()?->id;
+                        $measurement = CurrentMeasurement::query()->create($measurements);
+                        $audit->record('child_measurements_updated', $measurement, $measurement->id, array_keys($measurements));
+                    }
+                }
+            }
+
+            return $guardian;
+        });
+
+        return redirect()->route('guardians.show', $guardian)->with('status', 'تم حفظ ملف ولي الأمر والأبناء بنجاح.');
     }
 
     public function show(Guardian $guardian): View

@@ -40,10 +40,15 @@
         </tbody></table>
     @endif
 
+@php
+$statusTranslations = ['new'=>'طلب جديد','in_progress'=>'قيد الخياطة','partially_received'=>'استلام جزئي','fully_received'=>'مستلم بالكامل','ready'=>'جاهز للتسليم','delivered'=>'تم التسليم','cancelled'=>'ملغي'];
+$stageTranslations = ['not_started'=>'لم يبدأ','sewing'=>'قيد الخياطة','with_tailor'=>'لدى الترزي','waiting_completion'=>'بانتظار الإكمال','completed'=>'مكتمل'];
+$movementTranslations = ['initial_stock'=>'رصيد افتتاحي','purchase'=>'توريد/شراء','fabric_issued'=>'صرف إنتاج','garment_received'=>'استلام ملابس','sale'=>'صرف بيع','order_delivery'=>'تسليم طلب','adjustment'=>'تسوية','return'=>'مرتجع','loss'=>'تالف'];
+@endphp
     <h2>الطلبات</h2>
     <table><thead><tr><th>رقم الطلب</th><th>العميل / المدرسة</th><th>التاريخ</th><th>النوع</th><th>الحالة التشغيلية</th><th>المبلغ</th></tr></thead><tbody>
         @forelse($orders as $order)
-            <tr><td>{{ $order->number }}</td><td>{{ $order->customer_name_snapshot }}</td><td>{{ $order->created_on->format('Y-m-d') }}</td><td>{{ $order->type }}</td><td>{{ $order->operational_status }}</td><td>@if($financial){{ number_format((float) $order->approved_total, 2) }} ج.س@else—@endif</td></tr>
+            <tr><td>{{ $order->number }}</td><td>{{ $order->customer_name_snapshot }}</td><td>{{ $order->created_on->format('Y-m-d') }}</td><td>{{ $order->type === 'custom' ? 'تفصيل' : 'جاهز' }}</td><td>{{ $statusTranslations[$order->operational_status] ?? $order->operational_status }}</td><td>@if($financial){{ number_format((float) $order->approved_total, 2) }} ج.س@else—@endif</td></tr>
         @empty
             <tr><td colspan="6">لا توجد طلبات للفترة.</td></tr>
         @endforelse
@@ -58,7 +63,7 @@
                 @foreach($dispatch->items as $item)
                     @php($hasTailorRows = true)
                     @php($received = $item->receipts->sum('quantity_received'))
-                    <tr><td>{{ $job->order?->number ?? '—' }}</td><td>{{ $item->orderItem?->description_snapshot ?? $job->orderItem?->description_snapshot ?? '—' }}</td><td>{{ $job->stage }}</td><td>{{ $item->quantity_sent }}</td><td>{{ $received }}</td><td>{{ max(0, $item->quantity_sent - $received) }}</td></tr>
+                    <tr><td>{{ $job->order?->number ?? '—' }}</td><td>{{ $item->orderItem?->description_snapshot ?? $job->orderItem?->description_snapshot ?? '—' }}</td><td>{{ $stageTranslations[$job->stage] ?? $job->stage }}</td><td>{{ $item->quantity_sent }}</td><td>{{ $received }}</td><td>{{ max(0, $item->quantity_sent - $received) }}</td></tr>
                 @endforeach
             @endforeach
         @endforeach
@@ -75,7 +80,7 @@
     <h2>حركات المخزون في الفترة</h2>
     <table><thead><tr><th>التاريخ</th><th>الصنف</th><th>الحركة</th><th>التغير</th><th>السبب</th></tr></thead><tbody>
         @forelse($movements as $movement)
-            <tr><td>{{ $movement->occurred_at?->timezone(config('app.display_timezone'))?->format('Y-m-d H:i') ?? '—' }}</td><td>{{ $movement->variant?->school?->name ?? 'عام / بلا مدرسة' }} · {{ $movement->variant?->garmentType?->name ?? '—' }}</td><td>{{ $movement->movement_type }}</td><td>{{ $movement->quantity_change }}</td><td>{{ $movement->reason }}</td></tr>
+            <tr><td>{{ $movement->occurred_at?->timezone(config('app.display_timezone'))?->format('Y-m-d H:i') ?? '—' }}</td><td>{{ $movement->variant?->school?->name ?? 'عام / بلا مدرسة' }} · {{ $movement->variant?->garmentType?->name ?? '—' }}</td><td>{{ $movementTranslations[$movement->movement_type] ?? $movement->movement_type }}</td><td>{{ $movement->quantity_change }}</td><td>{{ $movement->reason }}</td></tr>
         @empty<tr><td colspan="5">لا توجد حركات مخزون.</td></tr>@endforelse
     </tbody></table>
     <p class="muted">أُنشئ هذا التقرير في {{ now(config('app.display_timezone'))->format('Y-m-d H:i') }} بتوقيت الخرطوم. النتائج التشغيلية محدودة بأول 500 طلب، وحركات المخزون بآخر 100 حركة في الفترة.</p>

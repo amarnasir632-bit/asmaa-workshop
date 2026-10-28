@@ -10,6 +10,7 @@ use App\Models\InventoryBalance;
 use App\Models\InventoryMovement;
 use App\Models\InventoryVariant;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\School;
 use App\Services\AuditLogger;
 use App\Services\OrderFinancialSummary;
@@ -67,6 +68,17 @@ class OrderController extends Controller
         Gate::authorize('orders.create');
         $guardians = Guardian::query()->with(['children' => fn ($query) => $query->orderBy('name')])->orderBy('name')->get();
         $variants = InventoryVariant::query()->with(['garmentType', 'school', 'grade', 'balance'])->where('is_active', true)->orderBy('id')->get();
+
+        $latestPrices = OrderItem::query()
+            ->whereNotNull('inventory_variant_id')
+            ->where('unit_price', '>', 0)
+            ->latest('id')
+            ->pluck('unit_price', 'inventory_variant_id');
+
+        $variants->each(function ($variant) use ($latestPrices) {
+            $variant->default_price = (string) ($latestPrices[$variant->id] ?? '0.00');
+        });
+
         $garmentTypes = GarmentType::query()->where('is_active', true)->orderBy('name')->get();
 
         return view('orders.create', compact('guardians', 'variants', 'garmentTypes'));

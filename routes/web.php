@@ -81,9 +81,11 @@ Route::middleware(['auth', 'active.staff'])->group(function (): void {
     Route::post('/inventory/adjustments/{adjustment}/reject', [InventoryController::class, 'rejectAdjustment'])->name('inventory.adjustments.reject');
     Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');
     Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
+    Route::post('/expenses/{expense}/reverse', [ExpenseController::class, 'reverse'])->name('expenses.reverse');
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
     Route::post('/payments', [PaymentController::class, 'store'])->name('payments.store');
     Route::post('/payments/{payment}/verify', [PaymentController::class, 'verify'])->name('payments.verify');
+    Route::post('/payments/{payment}/reverse', [PaymentController::class, 'reverse'])->name('payments.reverse');
     Route::get('/payment-evidence/{evidence}', [PaymentController::class, 'evidence'])->name('payments.evidence');
     Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit.index');
     Route::get('/history-imports', [HistoricalImportController::class, 'index'])->name('history.index');
