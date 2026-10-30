@@ -44,4 +44,4 @@ RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoload
 
 EXPOSE 10000
 
-CMD ["sh", "-c", "chown www-data:www-data /var/www/html/storage/app/private && exec apache2-foreground"]
+CMD ["sh", "-c", "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && php artisan migrate --force && php artisan db:seed --force && exec apache2-foreground"]
