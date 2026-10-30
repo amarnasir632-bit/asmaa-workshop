@@ -1,0 +1,14 @@
+name: Keep Alive
+
+on:
+  schedule:
+    - cron: '*/14 * * * *' # بيشتغل تلقائياً كل 14 دقيقة
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Web Service
+        run: |
+          curl -I https://asmaa-workshop.onrender.com || true
