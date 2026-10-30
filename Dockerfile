@@ -13,12 +13,17 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libcurl4-openssl-dev \
+        libfreetype6-dev \
+        libicu-dev \
+        libjpeg62-turbo-dev \
         libonig-dev \
+        libpng-dev \
         libpq-dev \
         libxml2-dev \
         libzip-dev \
         unzip \
-    && docker-php-ext-install curl dom mbstring opcache pdo_mysql pdo_pgsql xml zip \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install bcmath curl dom gd intl mbstring opcache pdo_mysql pdo_pgsql xml zip \
     && sed -ri "s!/var/www/html!${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/*.conf /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
     && sed -i 's/Listen 80/Listen 10000/' /etc/apache2/ports.conf \
     && sed -i 's/<VirtualHost \*:80>/<VirtualHost *:10000>/' /etc/apache2/sites-available/000-default.conf \
